@@ -1,0 +1,24 @@
+{
+    "name": "yapro/doctrine-converter",
+    "version": "1.0",
+    "require": {
+        "php": "7.4.*",
+        "doctrine/orm": "*"
+    },
+    "autoload": {
+        "psr-4": {
+            "YaPro\\DoctrineUnderstanding\\": "src/"
+        }
+    },
+    "require-dev": {
+        "ext-pdo_sqlite": "*",
+        "phpunit/phpunit": "*",
+        "symfony/cache": "*",
+        "symfony/serializer": "*"
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "YaPro\\DoctrineUnderstanding\\Tests\\": "tests/"
+        }
+    }
+}
