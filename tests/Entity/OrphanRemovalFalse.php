@@ -73,7 +73,7 @@ class OrphanRemovalFalse
 	public function setArticle(Article $article = null, bool $updateRelation = true): self
 	{
 		$this->article = $article;
-		if ($updateRelation) {
+		if ($article && $updateRelation) {
 			$article->addOrphanRemovalFalse($this, false);
 		}
 

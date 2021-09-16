@@ -45,6 +45,20 @@ class Article
 	 */
 	private Collection $cascadePersistTrueCollection;
 
+	/**
+	 * @var Collection|CascadeRefreshFalse[]
+	 * @ORM\OneToMany(targetEntity="CascadeRefreshFalse", mappedBy="article", cascade={"persist"})
+	 * @MaxDepth(1)
+	 */
+	private Collection $cascadeRefreshFalseCollection;
+
+	/**
+	 * @var Collection|CascadeRefreshTrue[]
+	 * @ORM\OneToMany(targetEntity="CascadeRefreshTrue", mappedBy="article", cascade={"persist", "refresh"})
+	 * @MaxDepth(1)
+	 */
+	private Collection $cascadeRefreshTrueCollection;
+
     /**
      * @var Collection|OrphanRemovalTrue[]
      * @ORM\OneToMany(targetEntity="OrphanRemovalTrue", mappedBy="article", cascade={"persist"}, orphanRemoval=true)
@@ -63,6 +77,8 @@ class Article
     {
 	    $this->cascadePersistFalseCollection = new ArrayCollection();
 	    $this->cascadePersistTrueCollection = new ArrayCollection();
+	    $this->cascadeRefreshFalseCollection = new ArrayCollection();
+	    $this->cascadeRefreshTrueCollection = new ArrayCollection();
 	    $this->orphanRemovalTrueCollection = new ArrayCollection();
 	    $this->orphanRemovalFalseCollection = new ArrayCollection();
     }
@@ -81,6 +97,22 @@ class Article
 	{
 		$this->parentId = $parentId;
 		return $this;
+	}
+
+	/**
+	 * @return Collection|CascadePersistFalse[]
+	 */
+	public function getCascadePersistFalseCollection()
+	{
+		return $this->cascadePersistFalseCollection;
+	}
+
+	/**
+	 * @return Collection|CascadePersistTrue[]
+	 */
+	public function getCascadePersistTrueCollection()
+	{
+		return $this->cascadePersistTrueCollection;
 	}
 
     public function addOrphanRemovalTrue(OrphanRemovalTrue $object, bool $updateRelation = true): self
@@ -176,4 +208,57 @@ class Article
 		}
 		return $this;
 	}
+
+	public function addCascadeRefreshFalse(CascadeRefreshFalse $object, bool $updateRelation = true): self
+	{
+		if ($this->cascadeRefreshFalseCollection->contains($object)) {
+			return $this;
+		}
+		$this->cascadeRefreshFalseCollection->add($object);
+		if ($updateRelation) {
+			$object->setArticle($this, false);
+		}
+		return $this;
+	}
+
+	public function addCascadeRefreshTrue(CascadeRefreshTrue $object, bool $updateRelation = true): self
+	{
+		if ($this->cascadeRefreshTrueCollection->contains($object)) {
+			return $this;
+		}
+		$this->cascadeRefreshTrueCollection->add($object);
+		if ($updateRelation) {
+			$object->setArticle($this, false);
+		}
+		return $this;
+	}
+
+	/**
+	 * @return Collection|CascadeRefreshFalse[]
+	 */
+	public function getCascadeRefreshFalseCollection()
+	{
+		return $this->cascadeRefreshFalseCollection;
+	}
+
+	/**
+	 * @return Collection|CascadeRefreshTrue[]
+	 */
+	public function getCascadeRefreshTrueCollection()
+	{
+		return $this->cascadeRefreshTrueCollection;
+	}
+
+	//public function removeCascadeRefreshFalse(CascadeRefreshFalse $object): self
+	//{
+	//	$this->cascadeRefreshFalseCollection->removeElement($object);
+	//	return $this;
+	//}
+//
+//
+	//public function removeCascadeRefreshTrue(CascadeRefreshTrue $object): self
+	//{
+	//	$this->cascadeRefreshTrueCollection->removeElement($object);
+	//	return $this;
+	//}
 }

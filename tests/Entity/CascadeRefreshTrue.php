@@ -5,12 +5,11 @@ declare(strict_types=1);
 namespace YaPro\DoctrineUnderstanding\Tests\Entity;
 
 use Doctrine\ORM\Mapping as ORM;
-use Symfony\Component\Serializer\Annotation\Groups;
 
 /**
  * @ORM\Entity()
  */
-class OrphanRemovalTrue
+class CascadeRefreshTrue
 {
 	/**
 	 * @var ?int
@@ -32,10 +31,10 @@ class OrphanRemovalTrue
 	private string $message;
 
     /**
-     * @ORM\ManyToOne(targetEntity="Article", inversedBy="orphanRemovalTrueCollection")
-     * @ORM\JoinColumn(name="articleId", nullable=false, onDelete="RESTRICT")
+     * @ORM\ManyToOne(targetEntity="Article", inversedBy="cascadeRefreshTrueCollection")
+     * @ORM\JoinColumn(name="articleId", nullable=true, onDelete="RESTRICT")
      */
-    private Article $article;
+    private ?Article $article;
 
 	public function getId(): ?int
 	{
@@ -74,7 +73,7 @@ class OrphanRemovalTrue
 	{
 		$this->article = $article;
 		if ($article && $updateRelation) {
-			$article->addOrphanRemovalTrue($this, false);
+			$article->addCascadeRefreshTrue($this, false);
 		}
 
 		return $this;

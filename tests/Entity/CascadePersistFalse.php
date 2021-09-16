@@ -73,9 +73,10 @@ class CascadePersistFalse
 	public function setArticle(Article $article = null, bool $updateRelation = true): self
 	{
 		$this->article = $article;
-		if ($updateRelation) {
-			$article->addCascadePersistFalse($this, false);
-		}
+		// полезный прием, облегчает работу со связями, можно смело применять (закомментировал для наглядности теста):
+		//if ($article && $updateRelation) {
+		//	$article->addCascadePersistFalse($this, false);
+		//}
 
 		return $this;
 	}
