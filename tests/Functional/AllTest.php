@@ -25,31 +25,20 @@ class AllTest extends CommonTestCase
 	}
 
 	/**
-	 * Опция cascade={"persist"} говорит о том, что когда объект Parent передан в $entityManager->persist(), то
-	 * объект Kid автоматически будет передан в функцию $entityManager->persist()
+	 * Отсутствие опция cascade={"persist"} говорит о том, что когда объект Parent передан в $entityManager->persist(),
+	 * то объект Kid не будет автоматически передан в функцию $entityManager->persist()
 	 */
-	public function testCascadePersist()
+	public function testCascadePersistFalse()
 	{
 		$article = new Article();
 		$article->setTitle('t1');
-
-		$cascadePersistTrue = new CascadePersistTrue();
-		$cascadePersistTrue->setMessage('m1');
-		$cascadePersistTrue->setArticle($article);
-		// недостаточно привязать Kid`s к Parent, нужно еще в Parent добавить Kid`s (ТУПАЯ doctrine):
-		$article->getCascadePersistTrueCollection()->add($cascadePersistTrue);
-
 		self::$entityManager->persist($article);
-		self::$entityManager->flush();
-		// Вуаля, мы не делали $entityManager->persist($cascadePersistTrue), doctrine сделала это за нас
-		self::assertSame(1, $article->getId());
-		self::assertSame(1, $cascadePersistTrue->getId());
-
 
 		// проверим, что если нет cascade={"persist"}, то будет проблема:
 		$cascadePersistFalse = new CascadePersistFalse();
 		$cascadePersistFalse->setMessage('m1');
 		$cascadePersistFalse->setArticle($article);
+
 		// недостаточно привязать Kid`s к Parent, нужно еще в Parent добавить Kid`s (ТУПАЯ doctrine):
 		$article->getCascadePersistFalseCollection()->add($cascadePersistFalse);
 		// Дабы не мучиться, с этого момента в др. сущностях в методе setArticle() выполняется автопривязка Kid к Parent
@@ -59,19 +48,78 @@ class AllTest extends CommonTestCase
 			$this->assertTrue(false);
 		} catch (ORMInvalidArgumentException $exception) {
 			// выбрасывается, когда к объекту Parent привязан объект Kid, про который UnitOfWork ничего не знает, потому
-			// что не была вызвана EntityManager#persist(Kid) и для Kid не задана опция cascade={"persist"}
+			// что не была вызвана EntityManager#persist(Kid) или для Kid не задана опция cascade={"persist"}
 			$this->assertTrue(true);
 		}
-		// как видим $cascadePersistFalse в базу еще не попала:
+		// как видим Kid в базу еще не попала:
 		self::assertSame(0, $cascadePersistFalse->getId());
 	}
 
 	/**
-	 * Опция cascade={"refresh"} говорит о том, что когда рефрешится Parent, то рефрешится и Kid
+	 * Опция cascade={"persist"} говорит о том, что когда объект Parent передан в $entityManager->persist(), то
+	 * объект Kid автоматически будет передан в функцию $entityManager->persist()
+	 */
+	public function testCascadePersistTrue()
+	{
+		$article = new Article();
+		$article->setTitle('t1');
+
+		$cascadePersistTrue = new CascadePersistTrue();
+		$cascadePersistTrue->setMessage('m1');
+		$cascadePersistTrue->setArticle($article);
+
+		self::$entityManager->persist($article);
+		self::$entityManager->flush();
+
+		// Вуаля, мы не делали $entityManager->persist($cascadePersistTrue), doctrine сделала это за нас
+		self::assertSame(1, $article->getId());
+		self::assertSame(1, $cascadePersistTrue->getId());
+	}
+
+	/**
+	 * Декларация cascade={"refresh"} говорит о том, что когда рефрешится Parent, то рефрешится и Kid
+	 * НЕ РАБОТАЕТ: https://github.com/doctrine/orm/pull/6798
 	 */
 	public function testCascadeRefresh()
 	{
-		self::assertTrue(true);
+		$article = new Article();
+		$article->setTitle('A');
+
+		$cascadeRefreshFalse = new CascadeRefreshFalse();
+		$cascadeRefreshFalse->setMessage('Old');
+		$cascadeRefreshFalse->setArticle($article);
+
+		$cascadeRefreshTrue = new CascadeRefreshTrue();
+		$cascadeRefreshTrue->setMessage('Old');
+		$cascadeRefreshTrue->setArticle($article);
+
+		self::$entityManager->persist($article);
+		self::$entityManager->flush();
+
+		self::$entityManager->getConnection()->executeQuery("UPDATE Article SET title='New'");
+		self::$entityManager->getConnection()->executeQuery("UPDATE CascadeRefreshFalse SET message='New'");
+		self::$entityManager->getConnection()->executeQuery("UPDATE CascadeRefreshTrue SET message='New'");
+		self::$entityManager->refresh($article);
+		// итак: Parent удален и заново выгружен из базы, Kid`s будут подгружены по запросу $parent->get...Collection()
+
+		// ОЖИДАЕМО: существующий объект, который не должен был обновиться, все так же остался старым:
+		self::assertSame('Old', $cascadeRefreshFalse->getMessage());
+		// НЕЖДАНЧИК 1: существующий объект, который должен был обновиться, все так же остался старым:
+		self::assertSame('Old', $cascadeRefreshTrue->getMessage());
+
+		// ОЖИДАЕМО: существующий объект, который не должен был обновиться, все так же остался старым:
+		self::assertSame('Old', $article->getCascadeRefreshFalseCollection()->first()->getMessage());
+		// НЕЖДАНЧИК 2: doctrine должен был подгрузить данные из бд, но не сделал этого:
+		self::assertSame('Old', $article->getCascadeRefreshTrueCollection()->first()->getMessage());
+
+		// ОЖИДАЕМО: существующий объект, который не должен был обновиться, все так же остался старым:
+		self::assertSame('Old', $cascadeRefreshFalse->getMessage());
+		// НЕЖДАНЧИК 3: существующий объект, который должен был обновиться, все так же остался старым:
+		self::assertSame('Old', $cascadeRefreshTrue->getMessage());
+
+		// ОЖИДАЕМО: ранее созданный объект и привязанный объект - являются одним и тем же объектом:
+		$article->getCascadeRefreshTrueCollection()->first()->setMessage('New2');
+		self::assertSame('New2', $cascadeRefreshTrue->getMessage());
 	}
 
 	/**
@@ -189,7 +237,7 @@ class AllTest extends CommonTestCase
 		self::$entityManager->persist($article);
 		self::$entityManager->flush();
 
-		self::assertSame(3, $article->getId());
+		self::assertSame(1, $article->getId());
 		self::assertSame(1, $orphanRemovalTrue->getId());
 		self::assertSame(1, $orphanRemovalFalse->getId());
 

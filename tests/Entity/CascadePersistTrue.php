@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace YaPro\DoctrineUnderstanding\Tests\Entity;
 
 use Doctrine\ORM\Mapping as ORM;
-use Symfony\Component\Serializer\Annotation\Groups;
 
 /**
  * @ORM\Entity()
@@ -73,10 +72,9 @@ class CascadePersistTrue
 	public function setArticle(Article $article = null, bool $updateRelation = true): self
 	{
 		$this->article = $article;
-		// полезный прием, облегчает работу со связями, можно смело применять (закомментировал для наглядности теста):
-		// if ($article && $updateRelation) {
-		// 	$article->addCascadePersistTrue($this, false);
-		// }
+		if ($article && $updateRelation) {
+			$article->addCascadePersistTrue($this, false);
+		}
 
 		return $this;
 	}

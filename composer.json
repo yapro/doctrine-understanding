@@ -1,5 +1,5 @@
 {
-    "name": "yapro/doctrine-converter",
+    "name": "yapro/doctrine-understanding",
     "version": "1.0",
     "require": {
         "php": "7.4.*",

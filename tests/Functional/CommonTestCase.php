@@ -76,6 +76,7 @@ class CommonTestCase extends TestCase
 		$sql = '';
 		foreach (self::$entityManager->getConnection()->getSchemaManager()->listTableNames() as $tableName) {
 			$sql .= 'delete from ' . $tableName . ';';
+			$sql .= 'DELETE FROM SQLITE_SEQUENCE WHERE name="' . $tableName . '";';
 		}
 		static::$entityManager->getConnection()->exec($sql);
 	}
