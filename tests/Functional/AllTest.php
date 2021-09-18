@@ -12,7 +12,10 @@ use YaPro\DoctrineUnderstanding\Tests\Entity\CascadeRefreshTrue;
 use YaPro\DoctrineUnderstanding\Tests\Entity\OrphanRemovalFalse;
 use YaPro\DoctrineUnderstanding\Tests\Entity\OrphanRemovalTrue;
 
-// https://www.doctrine-project.org/projects/doctrine-orm/en/2.9/reference/working-with-objects.html
+/**
+ * Ищите в тесте слово НЕЖДАНЧИК и читайте пояснение.
+ * https://www.doctrine-project.org/projects/doctrine-orm/en/2.9/reference/working-with-objects.html
+ */
 class AllTest extends CommonTestCase
 {
 	public function setUp(): void
@@ -25,18 +28,155 @@ class AllTest extends CommonTestCase
 	}
 
 	/**
+	 * Тестируем удаление связей и изменение связей у Parent-а
+	 *
+	 * Тест специально написан на основании двух разных сущностей (CascadeRefreshFalse, CascadeRefreshTrue), чтобы
+	 * показать, что наличие декларации cascade={"refresh"} никак не влияет на ситуацию.
+	 *
+	 * ИТОГ:
+	 * 1. удаление в Parent-е связи с Kid`s, не влияет на Kid`s (Kid`s все еще остаются связанными с Parent-ом)
+	 * 2. Удаление в Kid`s связи с Parent-ом, влияет на Parent-а, но только после $entityManager->refresh(Parent)
+	 * 3. если есть логика в бд, то лучше сразу после $entityManager->flush() делать $entityManager->refresh(Parent)
+	 */
+	public function testRelations()
+	{
+		$article = new Article();
+
+		$cascadeRefreshFalse = new CascadeRefreshFalse();
+		$cascadeRefreshFalse->setArticle($article);
+
+		$cascadeRefreshTrue = new CascadeRefreshTrue();
+		$cascadeRefreshTrue->setArticle($article);
+
+		self::$entityManager->persist($article);
+		self::$entityManager->flush();
+
+
+
+		// ТЕСТ 1: Удаление в Parent-е связи с Kid`s, не влияет на Kid`s (Kid`s все еще остаются связанными с Parent-ом)
+
+		// убедимся, что Kid`s и Parent правильно связаны
+		self::assertSame($article->getId(), $cascadeRefreshFalse->getArticle()->getId());
+		self::assertSame($article->getId(), $cascadeRefreshTrue->getArticle()->getId());
+
+		// удаляем Kid`s из Parent и ожидаем, что Kid`s теперь не смотрят на Parent
+		$article->getCascadeRefreshFalseCollection()->removeElement($cascadeRefreshFalse);
+		$article->getCascadeRefreshTrueCollection()->removeElement($cascadeRefreshTrue);
+
+		$assert = function (Article $article, CascadeRefreshFalse $cascadeRefreshFalse, CascadeRefreshTrue $cascadeRefreshTrue) {
+			// убедимся, что Kid`s смотрят на Parent
+			self::assertSame($article->getId(), $cascadeRefreshFalse->getArticle()->getId());
+			self::assertSame($article->getId(), $cascadeRefreshTrue->getArticle()->getId());
+
+			// убедимся, что Parent уже ничего не знает про Kid`s
+			self::assertSame(false, $article->getCascadeRefreshFalseCollection()->first());
+			self::assertSame(false, $article->getCascadeRefreshTrueCollection()->first());
+
+			// на всякий случай убедимся, что Parent не имеет Kid`s:
+			self::assertSame(0, $article->getCascadeRefreshFalseCollection()->count());
+			self::assertSame(0, $article->getCascadeRefreshTrueCollection()->count());
+		};
+
+		// ОЖИДАЕМО 1: если в Parent удалить связи с Kid`s, Kid`s все равно будут смотреть на Parent
+		$assert($article, $cascadeRefreshFalse, $cascadeRefreshTrue);
+
+		// сохраняем данные в базу (будем надеяться, что doctrine удалит связи из Kid`s):
+		self::$entityManager->flush();
+
+		// ОЖИДАЕМО 2: Kid`s все равно смотрят на Parent ( $entityManager->flush() не помог )
+		$assert($article, $cascadeRefreshFalse, $cascadeRefreshTrue);
+
+		// вытащим Parent из бд (будем надеяться, что doctrine удалит связи из Kid`s):
+		self::$entityManager->refresh($article);
+
+		// ОЖИДАЕМО 3: Kid`s все равно смотрят на Parent ( $entityManager->refresh() не помогает в удалении связей )
+		self::assertSame(1, $article->getCascadeRefreshFalseCollection()->count());
+		self::assertSame(1, $article->getCascadeRefreshTrueCollection()->count());
+
+
+
+		// ТЕСТ 2: Удаление в Kid`s связи с Parent-ом, влияет на Parent-а
+
+		// отвязываем Kid`s от Parent-а
+		$cascadeRefreshFalse->setArticle(null);
+		$cascadeRefreshTrue->setArticle(null);
+		// ожидаем, что после $entityManager->flush() к Parent точно не привязаны Kid`s
+		self::$entityManager->flush();
+
+		// НЕЖДАНЧИК: к Parent все таки привязаны Kid`s
+		self::assertSame($cascadeRefreshFalse->getId(), $article->getCascadeRefreshFalseCollection()->first()->getId());
+		self::assertSame($cascadeRefreshTrue->getId(),  $article->getCascadeRefreshTrueCollection()->first()->getId());
+
+		// вытащим Parent из бд
+		self::$entityManager->refresh($article);
+
+		// Наконец Kid`s отвязались от Parent-а:
+		self::assertSame(false, $article->getCascadeRefreshFalseCollection()->first());
+		self::assertSame(false, $article->getCascadeRefreshTrueCollection()->first());
+	}
+	/**
+	 * Тестируем изменение связей
+	 *
+	 * Тест специально написан на основании двух разных сущностей (CascadeRefreshFalse, CascadeRefreshTrue), чтобы
+	 * показать, что наличие декларации cascade={"refresh"} никак не влияет на ситуацию.
+	 *
+	 * ИТОГ: избежать ситуации "Parent связан с Kid`s, Kid`s связаны с Parent-2" помогает $entityManager->refresh(Parent)
+	 */
+	public function testRelationChanging()
+	{
+		$article = new Article();
+		$article2 = new Article('Article2');
+
+		$cascadeRefreshFalse = new CascadeRefreshFalse();
+		$cascadeRefreshFalse->setArticle($article);
+
+		$cascadeRefreshTrue = new CascadeRefreshTrue();
+		$cascadeRefreshTrue->setArticle($article);
+
+		self::$entityManager->persist($article);
+		self::$entityManager->persist($article2);
+		self::$entityManager->flush();
+
+		// поменяем связи в Kid`s, и будем ожидать, что в Parent`е связь тоже изменится
+		$cascadeRefreshFalse->setArticle($article2);
+		$cascadeRefreshTrue->setArticle($article2);
+
+		// НЕЖДАНЧИК 1: в Kid`s удалены связи с Parent, но Parent об этом ничего не знает
+		self::assertEquals($article->getCascadeRefreshFalseCollection()->first()->getId(), $cascadeRefreshFalse->getId());
+		self::assertEquals($article->getCascadeRefreshTrueCollection()->first()->getId(),  $cascadeRefreshTrue->getId());
+
+		// проверим, может быть flush() поможет решить НЕЖДАНЧИК 1
+		self::$entityManager->flush();
+
+		// НЕЖДАНЧИК 2: flush() не помог (Parent связан с Kid`s, Kid`s связаны с Parent-2)
+		self::assertEquals($article->getCascadeRefreshFalseCollection()->first()->getId(), $cascadeRefreshFalse->getId());
+		self::assertEquals($article->getCascadeRefreshTrueCollection()->first()->getId(),  $cascadeRefreshTrue->getId());
+		self::assertEquals($cascadeRefreshFalse->getArticle()->getId(), $article2->getId());
+		self::assertEquals($cascadeRefreshTrue->getArticle()->getId(), $article2->getId());
+
+		// проверим, может быть refresh() поможет решить НЕЖДАНЧИКИ
+		self::$entityManager->refresh($article);
+
+		self::assertSame($article->getCascadeRefreshFalseCollection()->first(), false);
+		self::assertSame($article->getCascadeRefreshTrueCollection()->first(),  false);
+
+		// проверим, что Kid`s связаны с Parent-2
+		self::assertEquals($cascadeRefreshFalse->getArticle()->getId(), $article2->getId());
+		self::assertEquals($cascadeRefreshTrue->getArticle()->getId(), $article2->getId());
+	}
+
+
+	/**
 	 * Отсутствие опция cascade={"persist"} говорит о том, что когда объект Parent передан в $entityManager->persist(),
 	 * то объект Kid не будет автоматически передан в функцию $entityManager->persist()
 	 */
 	public function testCascadePersistFalse()
 	{
 		$article = new Article();
-		$article->setTitle('t1');
 		self::$entityManager->persist($article);
 
 		// проверим, что если нет cascade={"persist"}, то будет проблема:
 		$cascadePersistFalse = new CascadePersistFalse();
-		$cascadePersistFalse->setMessage('m1');
 		$cascadePersistFalse->setArticle($article);
 
 		// недостаточно привязать Kid`s к Parent, нужно еще в Parent добавить Kid`s (ТУПАЯ doctrine):
@@ -62,10 +202,8 @@ class AllTest extends CommonTestCase
 	public function testCascadePersistTrue()
 	{
 		$article = new Article();
-		$article->setTitle('t1');
 
 		$cascadePersistTrue = new CascadePersistTrue();
-		$cascadePersistTrue->setMessage('m1');
 		$cascadePersistTrue->setArticle($article);
 
 		self::$entityManager->persist($article);
@@ -83,7 +221,6 @@ class AllTest extends CommonTestCase
 	public function testCascadeRefresh()
 	{
 		$article = new Article();
-		$article->setTitle('A');
 
 		$cascadeRefreshFalse = new CascadeRefreshFalse();
 		$cascadeRefreshFalse->setMessage('Old');
@@ -123,115 +260,16 @@ class AllTest extends CommonTestCase
 	}
 
 	/**
-	 * Тестируем $entityManager->refresh(Parent);
-	 */
-	public function testRefresh()
-	{
-		$articleA = new Article();
-		$articleA->setTitle('A');
-
-		$cascadeRefreshFalse = new CascadeRefreshFalse();
-		$cascadeRefreshFalse->setMessage('False');
-		$cascadeRefreshFalse->setArticle($articleA);
-
-		$cascadeRefreshTrue = new CascadeRefreshTrue();
-		$cascadeRefreshTrue->setMessage('True');
-		$cascadeRefreshTrue->setArticle($articleA);
-
-		self::$entityManager->persist($articleA);
-		self::$entityManager->flush();
-
-		self::assertSame($articleA->getId(), $cascadeRefreshFalse->getArticle()->getId());
-		self::assertSame($articleA->getId(), $cascadeRefreshTrue->getArticle()->getId());
-
-		// НЕЖДАНЧИК 1:
-
-		// удаляем Kid`s из Parent и ожидаем, что Kid`s теперь не смотрят на Parent
-		$articleA->getCascadeRefreshFalseCollection()->removeElement($cascadeRefreshFalse);
-		$articleA->getCascadeRefreshTrueCollection()->removeElement($cascadeRefreshTrue);
-		// убедимся, что Parent уже ничего не знает про Kid`s
-		self::assertSame(false, $articleA->getCascadeRefreshFalseCollection()->first());
-		self::assertSame(false, $articleA->getCascadeRefreshTrueCollection()->first());
-		// на всякий случай убедимся, что Parent не имеет Kid`s:
-		self::assertSame(0, $articleA->getCascadeRefreshFalseCollection()->count());
-		self::assertSame(0, $articleA->getCascadeRefreshTrueCollection()->count());
-		// ЗАСАДА 1: Kid`s все равно смотрят на Parent
-		self::assertSame($articleA->getId(), $cascadeRefreshFalse->getArticle()->getId());
-		self::assertSame($articleA->getId(), $cascadeRefreshTrue->getArticle()->getId());
-		// сохраняем данные в базу (будем надеяться, что doctrine исправит недоразумение):
-		self::$entityManager->flush();
-		// все так же Parent ничего не знает про Kid`s
-		self::assertSame(false, $articleA->getCascadeRefreshFalseCollection()->first());
-		self::assertSame(false, $articleA->getCascadeRefreshTrueCollection()->first());
-		// все так же Parent не имеет Kid`s:
-		self::assertSame(0, $articleA->getCascadeRefreshFalseCollection()->count());
-		self::assertSame(0, $articleA->getCascadeRefreshTrueCollection()->count());
-		// ЗАСАДА 2: Kid`s все равно смотрят на Parent ( $entityManager->flush() не помог )
-		self::assertSame($articleA->getId(), $cascadeRefreshFalse->getArticle()->getId());
-		self::assertSame($articleA->getId(), $cascadeRefreshTrue->getArticle()->getId());
-
-		// НЕЖДАНЧИК 2:
-
-		// вытащим Parent из бд
-		self::$entityManager->refresh($articleA);
-		// да, выше удалили Kid`s из Parent, но т.к. информация о связи находится в Kid`s, то ничего не отвязалось
-		self::assertSame($cascadeRefreshFalse->getId(), $articleA->getCascadeRefreshFalseCollection()->current()->getId());
-		self::assertSame($cascadeRefreshTrue->getId(), $articleA->getCascadeRefreshTrueCollection()->current()->getId());
-		// отвязываем Kid`s от Parent
-		$cascadeRefreshFalse->setArticle(null);
-		$cascadeRefreshTrue->setArticle(null);
-		// ожидаем, что после $entityManager->flush() к Parent точно не привязаны Kid`s
-		self::$entityManager->flush();
-		// ЗАСАДА 3: к Parent все таки привязаны Kid`s
-		self::assertSame($cascadeRefreshFalse->getId(), $articleA->getCascadeRefreshFalseCollection()->first()->getId());
-		self::assertSame($cascadeRefreshTrue->getId(),  $articleA->getCascadeRefreshTrueCollection()->first()->getId());
-
-		// вытащим Parent из бд
-		self::$entityManager->refresh($articleA);
-		// Наконец Kid`s отвязались от Parent:
-		self::assertSame(false, $articleA->getCascadeRefreshFalseCollection()->first());
-		self::assertSame(false, $articleA->getCascadeRefreshTrueCollection()->first());
-		/*
-		ВЫВОДЫ:
-		- удаляем Kid`s из Parent, обязательно удали Parent из Kid`s
-		- если есть логика в бд, то лучше сразу после этого делай $entityManager->refresh(Parent);
-		*/
-
-		// НЕЖДАНЧИК 2:
-//		$articleB = new Article();
-//		$articleB->setTitle('B');
-//
-//		$cascadeRefreshFalse->setArticle($articleB);
-//		$cascadeRefreshTrue->setArticle($articleB);
-//
-//		self::$entityManager->persist($articleB);
-//		self::$entityManager->flush();
-//
-//		self::assertSame($articleB->getId(), $cascadeRefreshFalse->getArticle()->getId());
-//		self::assertSame($articleB->getId(), $cascadeRefreshTrue->getArticle()->getId());
-//
-//		self::$entityManager->refresh($articleA);
-//		self::$entityManager->refresh($articleB);
-//
-//		self::assertSame($articleB->getId(), $cascadeRefreshFalse->getArticle()->getId());
-//		self::assertSame($articleB->getId(), $cascadeRefreshTrue->getArticle()->getId());
-
-	}
-
-	/**
 	 * Опция orphanRemoval=true говорит о том, что когда удаляется объект Parent, то удаляется и объект Kid
 	 */
 	public function testOrphanRemoval()
 	{
 		$article = new Article();
-		$article->setTitle('t1');
 
 		$orphanRemovalFalse = new OrphanRemovalFalse();
-		$orphanRemovalFalse->setMessage('m1');
 		$orphanRemovalFalse->setArticle($article);
 
 		$orphanRemovalTrue = new OrphanRemovalTrue();
-		$orphanRemovalTrue->setMessage('m1');
 		$orphanRemovalTrue->setArticle($article);
 
 		self::$entityManager->persist($article);

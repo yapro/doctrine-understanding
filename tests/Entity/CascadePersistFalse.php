@@ -29,7 +29,7 @@ class CascadePersistFalse
 	/**
 	 * @ORM\Column(type="text")
 	 */
-	private string $message;
+	private string $message = 'False';
 
     /**
      * @ORM\ManyToOne(targetEntity="Article", inversedBy="cascadePersistFalseCollection")

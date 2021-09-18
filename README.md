@@ -1,3 +1,16 @@
+# Понимая Doctrine
+
+Так вышло, что документация Doctrine в некоторых местах не является достаточно детально, поэтому было решено рассмотреть
+основные ситуации в файле [tests/Functional/AllTest.php](tests/Functional/AllTest.php)
+
+Более детальные тесты можно найти в официальном репозитории https://github.com/doctrine/orm/tree/2.9.x/tests/Doctrine/Tests/ORM/Functional
+
+## Как запустить тесты или поправить их
+
+Предисловие: в репозитории имеется файл composer.lock.dist, необходимый, чтобы понимать, когда и при каких версиях
+зависимостей текущие тесты успешно проходят, но Вы можете запускать их на основании своего composer.lock файла, это 
+позволит выявлять расхождения в версиях библиотеки Doctrine.
+
 Build
 ```sh
 docker build -t yapro/doctrine-understanding:latest -f ./Dockerfile ./
@@ -31,11 +44,9 @@ docker run --rm --user=1000:1000 -v $(pwd):/app yapro/doctrine-understanding:lat
 - https://xdebug.org/docs/upgrade_guide
 - https://www.jetbrains.com/help/phpstorm/2021.1/debugging-a-php-cli-script.html
 
-# Doctrine docs
+## Doctrine docs
 
-## Предисловие
-
-1.  [Примечания переводчика](docs/translator-note.md "Примечания переводчика")
+[Примечания переводчика](docs/translator-note.md "Примечания переводчика")
 
 ### Содержание
 

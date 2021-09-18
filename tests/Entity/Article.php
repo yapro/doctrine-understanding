@@ -73,8 +73,9 @@ class Article
 	 */
 	private Collection $orphanRemovalFalseCollection;
 
-    public function __construct()
+    public function __construct(string $title = 'Article')
     {
+		$this->title = $title;
 	    $this->cascadePersistFalseCollection = new ArrayCollection();
 	    $this->cascadePersistTrueCollection = new ArrayCollection();
 	    $this->cascadeRefreshFalseCollection = new ArrayCollection();

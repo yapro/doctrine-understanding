@@ -29,7 +29,7 @@ class OrphanRemovalFalse
 	/**
 	 * @ORM\Column(type="text")Article
 	 */
-	private string $message;
+	private string $message = 'False';
 
     /**
      * @ORM\ManyToOne(targetEntity="Article", inversedBy="orphanRemovalFalseCollection")
