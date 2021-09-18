@@ -1,9 +1,9 @@
 # Понимая Doctrine
 
-Так вышло, что документация Doctrine в некоторых местах не является достаточно детально, поэтому было решено рассмотреть
-основные ситуации в файле [tests/Functional/AllTest.php](tests/Functional/AllTest.php)
+Так вышло, что документация Doctrine в некоторых местах не является достаточно детальной, поэтому было решено
+рассмотреть основные ситуации в файле [tests/Functional/AllTest.php](tests/Functional/AllTest.php)
 
-Более детальные тесты можно найти в официальном репозитории https://github.com/doctrine/orm/tree/2.9.x/tests/Doctrine/Tests/ORM/Functional
+Напоминаю про тесты в официальном репозитории https://github.com/doctrine/orm/tree/2.9.x/tests/Doctrine/Tests/ORM/Functional
 
 ## Как запустить тесты или поправить их
 
