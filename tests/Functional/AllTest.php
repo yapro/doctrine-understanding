@@ -123,6 +123,9 @@ class AllTest extends CommonTestCase
 	 * показать, что наличие декларации cascade={"refresh"} никак не влияет на ситуацию.
 	 *
 	 * ИТОГ: избежать ситуации "Parent связан с Kid`s, Kid`s связаны с Parent-2" помогает $entityManager->refresh(Parent)
+	 *
+	 * Заметка: я ожидал, что flush актуализирует состояние согласно состоянию в бд или по крайней мере отвязывает все
+	 * неправильно привязанные сущности (основываясь на PK связей), но она так не делает.
 	 */
 	public function testRelationChanging()
 	{
@@ -294,6 +297,10 @@ class AllTest extends CommonTestCase
 	 */
 	public function testHintRefresh()
 	{
+		// Обнаружилась ситуация, когда Doctrine в запросах возвращает данные отсутствующие в параметрах SQL-запроса
+		// (возвращает лишние данные). Ситуация возникает из-за того, после выполнения SQL-запроса,  Doctrine отправляет
+		// данные в Unit of Work откуда данные возвращаются уже в виде объекта (или списка объектов). Казалось бы, все
+		// хорошо, но проблема появляется, когда один и тот же объект/список объектов запрашивается из бд несколько раз.
 		$article = new Article();
 		(new CascadePersistTrue())->setArticle($article);
 		(new CascadePersistTrue())->setArticle($article);
@@ -363,7 +370,10 @@ class AllTest extends CommonTestCase
 	 * ИТОГ:
 	 * 1. Query::HINT_REFRESH помогает справиться с неверным результатом
 	 * 2. Doctrine приводит состояние объектов в предыдущих результатах, к состоянию указанному в $query, поэтому, если
-	 * вам нужно неизменяемое состояние $query->getResult(), то клонируйте его или сериализуйте в простые структуры
+	 * вам нужно неизменяемое состояние $query->getResult(), то клонируйте его или сериализуйте в простые структуры, или
+	 * с осторожностью используйте $entityManager->clear(), ведь clear() отвяжет от ORM все что было привязано ранее (
+	 * таким образом будет отвязано даже то, что вы не планировали отвязывать) + при flush() отвязанных объектов не
+	 * возникает ошибок и эксепшенов (спасибо ORM за неочевидное поведение).
 	 */
 	public function testHintRefreshSubRelations()
 	{
@@ -418,5 +428,23 @@ class AllTest extends CommonTestCase
 		self::assertSame($result3[0]->getCascadePersistTrueCollection()->count(), $result[0]->getCascadePersistTrueCollection()->count());
 		self::assertSame($result3[0]->getCascadePersistTrueCollection()->count(), $result2[0]->getCascadePersistTrueCollection()->count());
 		// $result, $result2 снова содержит 1 объект CascadePersistTrue (на лицо перезаписанное значение переменной)
+
+
+
+		// НЕЖДАНЧИК 6: Еще есть функция $entityManager->clear(); которая отвязывает от Unit of Work всё, что было ранее
+		// привязано. Таким образом, если вызвать ее перед следующим запросом, предыдущие $result-ы останется не
+		// тронутыми, а новый $result будет правильным (не будет содержать избыточно связанные объекты).
+		self::$entityManager->clear();
+		$result4 = $query->setMaxResults(2)->setHint(Query::HINT_REFRESH, true)->getResult();
+		self::assertSame($result4[0]->getCascadePersistTrueCollection()->count(), 2);
+		self::assertSame($result3[0]->getCascadePersistTrueCollection()->count(), 1);
+		self::assertSame($result3[0]->getCascadePersistTrueCollection()->count(), $result[0]->getCascadePersistTrueCollection()->count());
+		self::assertSame($result3[0]->getCascadePersistTrueCollection()->count(), $result2[0]->getCascadePersistTrueCollection()->count());
+		// НЕЖДАНЧИК 7: Казалось бы вот оно счастье, но нет, т.к. предыдущие $result-ы отвязаны от "Unit of Work", то
+		// любые изменения произведенные с предыдущими $result-ами не будут сохранены при flush().
+		/** @var $result Article[] */
+		$result[0]->setTitle('new vallue');
+		self::$entityManager->flush();
+		// НЕЖДАНЧИК 8: мы думаем, что запись сохранена, но нет + нет никакой ошибки, не выброшен никакой эксепшен
 	}
 }
