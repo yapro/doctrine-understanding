@@ -5,6 +5,7 @@ namespace YaPro\DoctrineUnderstanding\Tests\Functional;
 
 use Doctrine\ORM\AbstractQuery;
 use Doctrine\ORM\ORMInvalidArgumentException;
+use Doctrine\ORM\Query;
 use YaPro\DoctrineUnderstanding\Tests\Entity\Article;
 use YaPro\DoctrineUnderstanding\Tests\Entity\CascadePersistFalse;
 use YaPro\DoctrineUnderstanding\Tests\Entity\CascadePersistTrue;
@@ -288,6 +289,9 @@ class AllTest extends CommonTestCase
 		self::assertSame(1, $orphanRemovalFalse->getId());
 	}
 
+	/**
+	 * ИТОГ: всегда используйте Query::HINT_REFRESH http://yapro.ru/article/5763
+	 */
 	public function testHintRefresh()
 	{
 		$article = new Article();
@@ -311,15 +315,108 @@ class AllTest extends CommonTestCase
 			'[{"id":1,"title":"Article","cascadePersistTrueCollection":[{"id":1,"parentId":0,"message":"True"}]}]',
 			json_encode($result)
 		);
-		self::assertSame($limitOne, count($result));
+		self::assertSame(1, count($result));
 		self::assertSame($limitOne, count($result[0]['cascadePersistTrueCollection']));
 
-		// НЕЖДАНЧИК 1:
-		$result2 = $query->getResult();
-		self::assertSame($limitOne, count($result2));
-		self::assertSame(2, $result2[0]->getCascadePersistTrueCollection()->count());
+		// НЕЖДАНЧИК 1: без AbstractQuery::HYDRATE_ARRAY возвращается неправильное кол-во Kid`s - не учитывается setMaxResults()
+		$result = $query->getResult();
+		self::assertSame($limitOne, count($result));
+		self::assertSame(2, $result[0]->getCascadePersistTrueCollection()->count());
+		// в ->setMaxResults() указали 1, а получили 2. Предположительно потому, что мы добавляли записи в базу с
+		// помощью объектов, а doctrine зная информацию о связях, просто вытаскивает из "Unit of Work" доп. объекты,
+		// игнорируя указание ->setMaxResults($limitOne)).
 
-		// $result2 = $query->setMaxResults(2)->getResult();
-		// self::assertSame($result, $result2);
+
+
+		// НЕЖДАНЧИК 2: если в Parent добавить новый Kid, то повторная выборка не дает новый результат (doctrine
+		// кэширует результат запроса на основании SQL)
+		self::$entityManager->getConnection()->executeQuery(
+			"INSERT INTO CascadePersistTrue (parentId, message, articleId) VALUES (0, 'message', 1)"
+		);
+		$result = $query->getResult();
+		self::assertSame(2, $result[0]->getCascadePersistTrueCollection()->count());
+		// в ->setMaxResults() указали 1, а получили 2, а в таблице CascadePersistTrue уже 3 записи
+
+
+
+		// НЕЖДАНЧИК 3: тот же самый запрос с HINT_REFRESH возвращает правильное кол-во Kid`s равное 1-ому
+		$queryClone = (clone $query);
+		$result = $queryClone->setHint(Query::HINT_REFRESH, true)->getResult();
+		self::assertSame($limitOne, $result[0]->getCascadePersistTrueCollection()->count());
+		// возвращает правильное кол-во, но непонятно почему первый запрос сразу не мог вернуть правильное кол-во
+
+		// ОЖИДАЕМО: теперь и предыдущий запрос (без HINT_REFRESH и без AbstractQuery::HYDRATE_ARRAY) возвращает
+		// правильное кол-во Kid`s равное 1-ому (потому что объект $queryClone все еще содержит Query::HINT_REFRESH)
+		$result = $queryClone->getResult();
+		self::assertSame($limitOne, $result[0]->getCascadePersistTrueCollection()->count());
+
+
+
+		// НЕЖДАНЧИК 4: опа теперь "НЕЖДАНЧИК 1" работает правильно даже без AbstractQuery::HYDRATE_ARRAY
+		$result = $query->getResult();
+		self::assertSame(1, $result[0]->getCascadePersistTrueCollection()->count());
+		// теперь возвращает правильное кол-во, но объяснения этому факту я найти не могу, разве что несмотря на то,
+		// что при указании Query::HINT_REFRESH мы клонировали $query, Query::HINT_REFRESH все так же остался в $query
+	}
+
+	/**
+	 * ИТОГ:
+	 * 1. Query::HINT_REFRESH помогает справиться с неверным результатом
+	 * 2. Doctrine приводит состояние объектов в предыдущих результатах, к состоянию указанному в $query, поэтому, если
+	 * вам нужно неизменяемое состояние $query->getResult(), то клонируйте его или сериализуйте в простые структуры
+	 */
+	public function testHintRefreshSubRelations()
+	{
+		// НЕЖДАНЧИК 1: если через точку с запятой объединить два SQL-запроса в один executeQuery() то первый
+		// выполнится, а второй (и последующие) не выполняться + не выбросится никакого эксепшена, жесть
+		self::$entityManager->getConnection()->executeQuery(
+			"INSERT INTO Article (title) VALUES ('title-1'), ('title-2');"
+		);
+		self::$entityManager->getConnection()->executeQuery(
+			"INSERT INTO CascadePersistTrue (parentId, message, articleId) VALUES (0, 'message-1', 1), (0, 'message-2', 1)"
+		);
+		$limitOne = 1;
+
+		$query = self::$entityManager
+			->createQuery('SELECT a, c FROM ' . Article::class . ' a JOIN a.cascadePersistTrueCollection c')
+			->setFirstResult(0)
+			->setMaxResults($limitOne);
+		$result = $query->getResult();
+		self::assertSame($limitOne, count($result));
+		// НЕЖДАНЧИК 2: возвращается верное кол-во Kid`s (согласно setMaxResults), но в testHintRefresh возвращалось
+		// неправильное кол-во записей. Предположительно потому, что мы добавляли записи в базу с помощью объектов, и
+		// doctrine хранил информацию о связях и просто вытаскивал из "Unit of Work" доп. объекты, игнорируя
+		// указание ->setMaxResults($limitOne)).
+		self::assertSame(1, $result[0]->getCascadePersistTrueCollection()->count());
+		// Ошибка ли это, нет, так задумано, Doctrine хранит уже полученные данные в виде объектов, и при повторном
+		// запросе из бд, не удаляет то, что было получено ранее, а при возможности дополняет (такая стратегия работы).
+
+
+
+		$result = $query->setMaxResults(2)->getResult();
+		self::assertSame($limitOne, count($result));
+		// НЕЖДАНЧИК 3: мы указали setMaxResults(2), а получаем одну запись
+		self::assertSame(1, $result[0]->getCascadePersistTrueCollection()->count());
+		// результат неправильный, а SQL-правильный - LIMIT 2:
+		$sql = 'SELECT a0_.id AS id_0, a0_.title AS title_1, '.
+			'c1_.id AS id_2, c1_.parentId AS parentId_3, c1_.message AS message_4, c1_.articleId AS articleId_5 '.
+			'FROM Article a0_ INNER JOIN CascadePersistTrue c1_ ON a0_.id = c1_.articleId LIMIT 2';
+		self::assertSame($sql, $query->getSQL());
+
+
+
+		// НЕЖДАНЧИК 4: мы не меняем $result, doctrine сама это делает за нас
+		$result2 = $query->setHint(Query::HINT_REFRESH, true)->getResult();
+		self::assertSame(2, $result2[0]->getCascadePersistTrueCollection()->count());
+		self::assertSame(2, $result[0]->getCascadePersistTrueCollection()->count());
+		// теперь результат правильный, но содержимое переменной $result изменено (вот это поворот)
+
+		$result3 = $query->setMaxResults(1)->setHint(Query::HINT_REFRESH, true)->getResult();
+		self::assertSame($result3[0]->getCascadePersistTrueCollection()->count(), 1);
+		// результат правильный, но посмотрите что будет дальше:
+		// НЕЖДАНЧИК 5: doctrine всякий раз меняет содержимое результирующих переменных
+		self::assertSame($result3[0]->getCascadePersistTrueCollection()->count(), $result[0]->getCascadePersistTrueCollection()->count());
+		self::assertSame($result3[0]->getCascadePersistTrueCollection()->count(), $result2[0]->getCascadePersistTrueCollection()->count());
+		// $result, $result2 снова содержит 1 объект CascadePersistTrue (на лицо перезаписанное значение переменной)
 	}
 }
