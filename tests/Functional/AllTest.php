@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace YaPro\DoctrineUnderstanding\Tests\Functional;
 
+use Doctrine\ORM\AbstractQuery;
 use Doctrine\ORM\ORMInvalidArgumentException;
 use YaPro\DoctrineUnderstanding\Tests\Entity\Article;
 use YaPro\DoctrineUnderstanding\Tests\Entity\CascadePersistFalse;
@@ -285,5 +286,40 @@ class AllTest extends CommonTestCase
 		self::assertSame(null, $article->getId());
 		self::assertSame(null, $orphanRemovalTrue->getId());
 		self::assertSame(1, $orphanRemovalFalse->getId());
+	}
+
+	public function testHintRefresh()
+	{
+		$article = new Article();
+		(new CascadePersistTrue())->setArticle($article);
+		(new CascadePersistTrue())->setArticle($article);
+		self::$entityManager->persist($article);
+		self::$entityManager->flush();
+
+		// $result1 = Doctrine вытащи из бд покупателя с двумя последними заказами (LIMIT 2)
+		// $result2 = Doctrine вытащи из бд покупателя и самый последний заказ (LIMIT 1)
+
+		$limitOne = 1;
+
+		$query = self::$entityManager
+			->createQuery('SELECT a, c FROM ' . Article::class . ' a JOIN a.cascadePersistTrueCollection c')
+			->setFirstResult(0)
+			->setMaxResults($limitOne);
+
+		$result = $query->getResult(AbstractQuery::HYDRATE_ARRAY);
+		self::assertSame(
+			'[{"id":1,"title":"Article","cascadePersistTrueCollection":[{"id":1,"parentId":0,"message":"True"}]}]',
+			json_encode($result)
+		);
+		self::assertSame($limitOne, count($result));
+		self::assertSame($limitOne, count($result[0]['cascadePersistTrueCollection']));
+
+		// НЕЖДАНЧИК 1:
+		$result2 = $query->getResult();
+		self::assertSame($limitOne, count($result2));
+		self::assertSame(2, $result2[0]->getCascadePersistTrueCollection()->count());
+
+		// $result2 = $query->setMaxResults(2)->getResult();
+		// self::assertSame($result, $result2);
 	}
 }
