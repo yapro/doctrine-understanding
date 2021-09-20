@@ -172,7 +172,7 @@ class AllTest extends CommonTestCase
 
 
 	/**
-	 * Отсутствие опция cascade={"persist"} говорит о том, что когда объект Parent передан в $entityManager->persist(),
+	 * Отсутствие cascade={"persist"} говорит о том, что когда объект Parent передан в $entityManager->persist(),
 	 * то объект Kid не будет автоматически передан в функцию $entityManager->persist()
 	 */
 	public function testCascadePersistFalse()
@@ -193,7 +193,7 @@ class AllTest extends CommonTestCase
 			$this->assertTrue(false);
 		} catch (ORMInvalidArgumentException $exception) {
 			// выбрасывается, когда к объекту Parent привязан объект Kid, про который UnitOfWork ничего не знает, потому
-			// что не была вызвана EntityManager#persist(Kid) или для Kid не задана опция cascade={"persist"}
+			// что не была вызвана EntityManager#persist(Kid) или для Kid не задана декларация cascade={"persist"}
 			$this->assertTrue(true);
 		}
 		// как видим Kid в базу еще не попала:
@@ -201,7 +201,7 @@ class AllTest extends CommonTestCase
 	}
 
 	/**
-	 * Опция cascade={"persist"} говорит о том, что когда объект Parent передан в $entityManager->persist(), то
+	 * Декларация cascade={"persist"} говорит о том, что когда объект Parent передан в $entityManager->persist(), то
 	 * объект Kid автоматически будет передан в функцию $entityManager->persist()
 	 */
 	public function testCascadePersistTrue()
@@ -265,7 +265,7 @@ class AllTest extends CommonTestCase
 	}
 
 	/**
-	 * Опция orphanRemoval=true говорит о том, что когда удаляется объект Parent, то удаляется и объект Kid
+	 * Декларация orphanRemoval=true говорит о том, что когда удаляется объект Parent, то удаляется и объект Kid
 	 */
 	public function testOrphanRemoval()
 	{
@@ -293,12 +293,16 @@ class AllTest extends CommonTestCase
 	}
 
 	/**
-	 * ИТОГ: всегда используйте Query::HINT_REFRESH http://yapro.ru/article/5763
+	 * ИТОГ:
+	 * - $entityManager->flush() не синхронизирует состояние объектов с состоянием в бд ($entityManager->flush() лишь
+	 *   сохраняет изменения внесенные между текущим $entityManager->flush() и предыдущим)
+	 * - кажется, что стоит всегда использовать Query::HINT_REFRESH http://yapro.ru/article/5763 - но это неправильно,
+	 *   доказательство этого находятся в testHintRefreshSubRelations()
 	 */
 	public function testHintRefresh()
 	{
 		// Обнаружилась ситуация, когда Doctrine в запросах возвращает данные отсутствующие в параметрах SQL-запроса
-		// (возвращает лишние данные). Ситуация возникает из-за того, после выполнения SQL-запроса,  Doctrine отправляет
+		// (возвращает лишние данные). Ситуация возникает потому что после выполнения SQL-запроса, Doctrine отправляет
 		// данные в Unit of Work откуда данные возвращаются уже в виде объекта (или списка объектов). Казалось бы, все
 		// хорошо, но проблема появляется, когда один и тот же объект/список объектов запрашивается из бд несколько раз.
 		$article = new Article();
@@ -368,12 +372,14 @@ class AllTest extends CommonTestCase
 
 	/**
 	 * ИТОГ:
-	 * 1. Query::HINT_REFRESH помогает справиться с неверным результатом
+	 * 1. Query::HINT_REFRESH помогает справиться с неверным результатом последнего запроса, но меняет предыдущие
+	 *    результаты, а значит использовать его нельзя, нужно вызывать $query->getResult(AbstractQuery::HYDRATE_ARRAY) и
+	 *    затем при необходимости сериализовать массив в иммутабельные объекты
 	 * 2. Doctrine приводит состояние объектов в предыдущих результатах, к состоянию указанному в $query, поэтому, если
 	 * вам нужно неизменяемое состояние $query->getResult(), то клонируйте его или сериализуйте в простые структуры, или
-	 * с осторожностью используйте $entityManager->clear(), ведь clear() отвяжет от ORM все что было привязано ранее (
-	 * таким образом будет отвязано даже то, что вы не планировали отвязывать) + при flush() отвязанных объектов не
-	 * возникает ошибок и эксепшенов (спасибо ORM за неочевидное поведение).
+	 * с осторожностью используйте $entityManager->clear(), ведь clear() отвяжет от ORM все что было привязано ранее
+	 * (таким образом будет отвязано даже то, что не планировалось отвязывать) + при flush() не возникает ошибок и
+	 * эксепшенов (объекты ведь отвязаны, первый раз такое поведение кажется неочевидным).
 	 */
 	public function testHintRefreshSubRelations()
 	{
@@ -443,8 +449,10 @@ class AllTest extends CommonTestCase
 		// НЕЖДАНЧИК 7: Казалось бы вот оно счастье, но нет, т.к. предыдущие $result-ы отвязаны от "Unit of Work", то
 		// любые изменения произведенные с предыдущими $result-ами не будут сохранены при flush().
 		/** @var $result Article[] */
-		$result[0]->setTitle('new vallue');
+		/** @var $result4 Article[] */
+		$result4[0]->setTitle('new value 4');
+		$result[0]->setTitle('new value 0');
 		self::$entityManager->flush();
-		// НЕЖДАНЧИК 8: мы думаем, что запись сохранена, но нет + нет никакой ошибки, не выброшен никакой эксепшен
+		// итог: сохранено значение 'new value 4'
 	}
 }

@@ -3,7 +3,10 @@
 Так вышло, что документация Doctrine в некоторых местах не является достаточно детальной, поэтому было решено
 рассмотреть основные ситуации в файле [tests/Functional/AllTest.php](tests/Functional/AllTest.php)
 
-Напоминаю про тесты в официальном репозитории https://github.com/doctrine/orm/tree/2.9.x/tests/Doctrine/Tests/ORM/Functional
+Напоминаю про:
+- https://ocramius.github.io/doctrine-best-practices/
+- тесты в официальном репозитории https://github.com/doctrine/orm/tree/2.9.x/tests/Doctrine/Tests/ORM/Functional
+- https://buildmedia.readthedocs.org/media/pdf/doctrine2/stable/doctrine2.pdf
 
 По правде я разочарован большим количеством неочевидных моментов и простых багов (учитывая кол-во лет разработки ORM).
 
@@ -79,5 +82,7 @@ docker run --rm --user=1000:1000 -v $(pwd):/app yapro/doctrine-understanding:lat
 25.  Драйверы метаданных
 26.  Полезные советы
 27.  Ограничения и известные проблемы
+
+Работа не завершена, аналогичная документация: https://github.com/kaurov/doctrine2-ru/wiki
 
 Copyrights © YaPro.Ru
