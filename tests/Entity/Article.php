@@ -73,6 +73,13 @@ class Article
 	 */
 	private Collection $orphanRemovalFalseCollection;
 
+    /**
+     * @var Collection|OrphanRemovalFalse[]
+     * @ORM\OneToMany(targetEntity="ReAddingToCollection", mappedBy="article", cascade={"persist"})
+     * @MaxDepth(1)
+     */
+    private Collection $reAddingToCollection;
+
     public function __construct(string $title = 'Article')
     {
 		$this->title = $title;
@@ -82,6 +89,7 @@ class Article
 	    $this->cascadeRefreshTrueCollection = new ArrayCollection();
 	    $this->orphanRemovalTrueCollection = new ArrayCollection();
 	    $this->orphanRemovalFalseCollection = new ArrayCollection();
+        $this->reAddingToCollection = new ArrayCollection();
     }
 
 	public function getId(): ?int
@@ -262,4 +270,27 @@ class Article
 	//	$this->cascadeRefreshTrueCollection->removeElement($object);
 	//	return $this;
 	//}
+
+    /**
+     * @return Collection|OrphanRemovalFalse[]
+     */
+    public function getReAddingToCollection()
+    {
+        return $this->reAddingToCollection;
+    }
+
+    /**
+     * @param ReAddingToCollection $object
+     * @return self
+     */
+    public function addReAddingToCollection(ReAddingToCollection $object): self
+    {
+        if ($this->reAddingToCollection->contains($object)) {
+            return $this;
+        }
+        $this->reAddingToCollection->add($object);
+        $object->setArticle($this);
+
+        return $this;
+    }
 }

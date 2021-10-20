@@ -18,6 +18,7 @@ use YaPro\DoctrineUnderstanding\Tests\Entity\CascadeRefreshFalse;
 use YaPro\DoctrineUnderstanding\Tests\Entity\CascadeRefreshTrue;
 use YaPro\DoctrineUnderstanding\Tests\Entity\OrphanRemovalFalse;
 use YaPro\DoctrineUnderstanding\Tests\Entity\OrphanRemovalTrue;
+use YaPro\DoctrineUnderstanding\Tests\Entity\ReAddingToCollection;
 
 class CommonTestCase extends TestCase
 {
@@ -64,6 +65,7 @@ class CommonTestCase extends TestCase
 			self::$entityManager->getClassMetadata(CascadeRefreshTrue::class),
 			self::$entityManager->getClassMetadata(OrphanRemovalFalse::class),
 			self::$entityManager->getClassMetadata(OrphanRemovalTrue::class),
+            self::$entityManager->getClassMetadata(ReAddingToCollection::class),
 		];
 		$schemaTool = new SchemaTool(self::$entityManager);
 		// you can drop the table like this if necessary
