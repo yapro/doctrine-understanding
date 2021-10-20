@@ -455,4 +455,66 @@ class AllTest extends CommonTestCase
 		self::$entityManager->flush();
 		// итог: сохранено значение 'new value 4'
 	}
+
+    /**
+     * ИТОГ:
+     * В сценарии когда мы отдельно достаем дочерний объект и его родителя, а затем повторно добавим первый
+     * в коллекцию второго, доктрина распознает, что добавление выполняется повторно и нового экземпляра добавлено не
+     * будет.
+     */
+    public function testReAddingToCollection(): void
+    {
+        self::$entityManager->getConnection()->executeQuery(
+            "INSERT INTO Article (title) VALUES ('title-1');"
+        );
+        self::$entityManager->getConnection()->executeQuery(
+            "INSERT INTO CascadePersistTrue (parentId, message, articleId) VALUES (0, 'msg-kid-1', 1)"
+        );
+
+        $kid1 = self::$entityManager->getRepository(CascadePersistTrue::class)->findOneByMessage('msg-kid-1');
+        $kid2 = (new CascadePersistTrue())->setMessage('msg-kid-2');
+
+        /** @var Article $parent */
+        $parent = self::$entityManager->getRepository(Article::class)->find(1);
+        $parent->addCascadePersistTrue($kid1);
+        $parent->addCascadePersistTrue($kid2);
+
+        self::$entityManager->flush();
+        self::$entityManager->clear();
+        /** @var Article $parent */
+        $parent = self::$entityManager->getRepository(Article::class)->find(1);
+        $this->assertCount(2, $parent->getCascadePersistTrueCollection());
+    }
+
+    /**
+     * ИТОГ:
+     * В сценарии когда мы отдельно достаем дочерний объект, очищаем entityManager, достаем родителя, а затем
+     * повторно добавим дочерний объект в коллекцию родителя, доктрина НЕ распознает, что добавление выполняется
+     * повторно и сохранит в бд тот же экземпляр как отдельную запись.
+     */
+    public function testReAddingToCollectionWithClear(): void
+    {
+        self::$entityManager->getConnection()->executeQuery(
+            "INSERT INTO Article (title) VALUES ('title-1');"
+        );
+        self::$entityManager->getConnection()->executeQuery(
+            "INSERT INTO CascadePersistTrue (parentId, message, articleId) VALUES (0, 'msg-kid-1', 1)"
+        );
+
+        $kid1 = self::$entityManager->getRepository(CascadePersistTrue::class)->findOneByMessage('msg-kid-1');
+        // !! сбросим entityManager
+        self::$entityManager->clear();
+        $kid2 = (new CascadePersistTrue())->setMessage('msg-kid-2');
+
+        /** @var Article $parent */
+        $parent = self::$entityManager->getRepository(Article::class)->find(1);
+        $parent->addCascadePersistTrue($kid1);
+        $parent->addCascadePersistTrue($kid2);
+
+        self::$entityManager->flush();
+        self::$entityManager->clear();
+        /** @var Article $parent */
+        $parent = self::$entityManager->getRepository(Article::class)->find(1);
+        $this->assertCount(3, $parent->getCascadePersistTrueCollection());
+    }
 }
