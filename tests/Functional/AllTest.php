@@ -13,7 +13,6 @@ use YaPro\DoctrineUnderstanding\Tests\Entity\CascadeRefreshFalse;
 use YaPro\DoctrineUnderstanding\Tests\Entity\CascadeRefreshTrue;
 use YaPro\DoctrineUnderstanding\Tests\Entity\OrphanRemovalFalse;
 use YaPro\DoctrineUnderstanding\Tests\Entity\OrphanRemovalTrue;
-use YaPro\DoctrineUnderstanding\Tests\Entity\ReAddingToCollection;
 
 /**
  * Ищите в тесте слово НЕЖДАНЧИК и читайте пояснение.
@@ -469,21 +468,22 @@ class AllTest extends CommonTestCase
             "INSERT INTO Article (title) VALUES ('title-1');"
         );
         self::$entityManager->getConnection()->executeQuery(
-            "INSERT INTO ReAddingToCollection (title, articleId) VALUES ('title-kid-1', 1);"
+            "INSERT INTO CascadePersistTrue (parentId, message, articleId) VALUES (0, 'msg-kid-1', 1)"
         );
 
-        $kid1 = self::$entityManager->getRepository(ReAddingToCollection::class)->findOneByTitle('title-kid-1');
-        $kid2 = (new ReAddingToCollection())->setTitle('title-kid-2');
-        $parent = self::$entityManager->getRepository(Article::class)->find(1);
+        $kid1 = self::$entityManager->getRepository(CascadePersistTrue::class)->findOneByMessage('msg-kid-1');
+        $kid2 = (new CascadePersistTrue())->setMessage('msg-kid-2');
 
-        $parent->addReAddingToCollection($kid1);
-        $parent->addReAddingToCollection($kid2);
+        /** @var Article $parent */
+        $parent = self::$entityManager->getRepository(Article::class)->find(1);
+        $parent->addCascadePersistTrue($kid1);
+        $parent->addCascadePersistTrue($kid2);
 
         self::$entityManager->flush();
         self::$entityManager->clear();
         /** @var Article $parent */
         $parent = self::$entityManager->getRepository(Article::class)->find(1);
-        $this->assertCount(2, $parent->getReAddingToCollection());
+        $this->assertCount(2, $parent->getCascadePersistTrueCollection());
     }
 
     /**
@@ -498,22 +498,23 @@ class AllTest extends CommonTestCase
             "INSERT INTO Article (title) VALUES ('title-1');"
         );
         self::$entityManager->getConnection()->executeQuery(
-            "INSERT INTO ReAddingToCollection (title, articleId) VALUES ('title-kid-1', 1);"
+            "INSERT INTO CascadePersistTrue (parentId, message, articleId) VALUES (0, 'msg-kid-1', 1)"
         );
 
-        $kid1 = self::$entityManager->getRepository(ReAddingToCollection::class)->findOneByTitle('title-kid-1');
+        $kid1 = self::$entityManager->getRepository(CascadePersistTrue::class)->findOneByMessage('msg-kid-1');
         // !! сбросим entityManager
         self::$entityManager->clear();
-        $kid2 = (new ReAddingToCollection())->setTitle('title-kid-2');
-        $parent = self::$entityManager->getRepository(Article::class)->find(1);
+        $kid2 = (new CascadePersistTrue())->setMessage('msg-kid-2');
 
-        $parent->addReAddingToCollection($kid1);
-        $parent->addReAddingToCollection($kid2);
+        /** @var Article $parent */
+        $parent = self::$entityManager->getRepository(Article::class)->find(1);
+        $parent->addCascadePersistTrue($kid1);
+        $parent->addCascadePersistTrue($kid2);
 
         self::$entityManager->flush();
         self::$entityManager->clear();
         /** @var Article $parent */
         $parent = self::$entityManager->getRepository(Article::class)->find(1);
-        $this->assertCount(3, $parent->getReAddingToCollection());
+        $this->assertCount(3, $parent->getCascadePersistTrueCollection());
     }
 }
