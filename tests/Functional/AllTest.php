@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace YaPro\DoctrineUnderstanding\Tests\Functional;
 
+use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\AbstractQuery;
 use Doctrine\ORM\ORMInvalidArgumentException;
 use Doctrine\ORM\Query;
@@ -516,5 +517,32 @@ class AllTest extends CommonTestCase
         /** @var Article $parent */
         $parent = self::$entityManager->getRepository(Article::class)->find(1);
         $this->assertCount(3, $parent->getCascadePersistTrueCollection());
+    }
+
+    /**
+     * Итог:
+     * Метод execute QueryBuilder'а выкидывает исключения, несмотря на то что это не прописано в его аннотации.
+     */
+    public function testExecuteThrowsException(): void
+    {
+        $this->expectException(UniqueConstraintViolationException::class);
+
+        $article0 = new Article('article 0');
+        $article1 = new Article('article 1');
+        self::$entityManager->persist($article0);
+        self::$entityManager->persist($article1);
+        self::$entityManager->flush();
+
+        $articleRepository = self::$entityManager->getRepository(Article::class);
+
+        $articleRepository->createQueryBuilder('a')
+            ->update()
+            ->set('a.title', ':newTitle')
+            ->andWhere('a.title = :oldTitle')
+            ->setParameter('oldTitle', 'article 1')
+            ->setParameter('newTitle', 'article 0')
+            ->getQuery()
+            ->execute()
+        ;
     }
 }
