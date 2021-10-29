@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace YaPro\DoctrineUnderstanding\Tests\Functional;
 
+use Doctrine\DBAL\Exception\DriverException;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\AbstractQuery;
 use Doctrine\ORM\ORMInvalidArgumentException;
@@ -521,9 +522,10 @@ class AllTest extends CommonTestCase
 
     /**
      * Итог:
-     * Метод execute QueryBuilder'а выкидывает исключения, несмотря на то что это не прописано в его аннотации.
+     * Метод execute QueryBuilder'а выкидывает исключения на обновление, несмотря на то что это не прописано в его
+     * аннотации.
      */
-    public function testExecuteThrowsException(): void
+    public function testExecuteThrowsExceptionOnUpdate(): void
     {
         $this->expectException(UniqueConstraintViolationException::class);
 
@@ -544,5 +546,33 @@ class AllTest extends CommonTestCase
             ->getQuery()
             ->execute()
         ;
+    }
+
+    /**
+     * Итог:
+     * Метод execute QueryBuilder'а выкидывает исключения на удаление, несмотря на то что это не прописано в его
+     * аннотации.
+     */
+    public function testExecuteTrowsExceptionOnDelete(): void
+    {
+        $this->expectException(DriverException::class);
+        $article = new Article('article 0');
+        $child = (new OrphanRemovalFalse())->setArticle($article);
+
+        self::$entityManager->persist($child);
+        self::$entityManager->persist($article);
+        self::$entityManager->flush();
+
+        $articleRepository = self::$entityManager->getRepository(Article::class);
+
+        // Sqlite по умолчанию не проверяет foreign key violation.
+        self::$entityManager->getConnection()->executeQuery("PRAGMA foreign_keys = ON");
+
+        $articleRepository->createQueryBuilder('a')
+            ->delete()
+            ->andWhere('a.title = :title')
+            ->setParameter('title', 'article 0')
+            ->getQuery()
+            ->execute();
     }
 }
