@@ -535,14 +535,13 @@ class AllTest extends CommonTestCase
         self::$entityManager->persist($article1);
         self::$entityManager->flush();
 
-        $articleRepository = self::$entityManager->getRepository(Article::class);
-
-        $articleRepository->createQueryBuilder('a')
+        self::$entityManager->getRepository(Article::class)
+            ->createQueryBuilder('a')
             ->update()
             ->set('a.title', ':newTitle')
-            ->andWhere('a.title = :oldTitle')
-            ->setParameter('oldTitle', 'article 1')
-            ->setParameter('newTitle', 'article 0')
+            ->andWhere('a.id = :id')
+            ->setParameter('id', $article1->getId())
+            ->setParameter('newTitle', 'article 0')// такой же title, как и другой $article.
             ->getQuery()
             ->execute()
         ;
@@ -557,21 +556,19 @@ class AllTest extends CommonTestCase
     {
         $this->expectException(DriverException::class);
         $article = new Article('article 0');
-        $child = (new OrphanRemovalFalse())->setArticle($article);
+        (new OrphanRemovalFalse())->setArticle($article);
 
-        self::$entityManager->persist($child);
         self::$entityManager->persist($article);
         self::$entityManager->flush();
-
-        $articleRepository = self::$entityManager->getRepository(Article::class);
 
         // Sqlite по умолчанию не проверяет foreign key violation.
         self::$entityManager->getConnection()->executeQuery("PRAGMA foreign_keys = ON");
 
-        $articleRepository->createQueryBuilder('a')
+        self::$entityManager->getRepository(Article::class)
+            ->createQueryBuilder('a')
             ->delete()
-            ->andWhere('a.title = :title')
-            ->setParameter('title', 'article 0')
+            ->andWhere('a.id = :id')
+            ->setParameter('id', $article->getId())
             ->getQuery()
             ->execute();
     }
