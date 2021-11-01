@@ -286,8 +286,10 @@ class AllTest extends CommonTestCase
 		self::assertSame(1, $orphanRemovalTrue->getId());
 		self::assertSame(1, $orphanRemovalFalse->getId());
 
+        self::$entityManager->getConnection()->executeQuery("PRAGMA foreign_keys = OFF");
 		self::$entityManager->remove($article);
 		self::$entityManager->flush();
+        self::$entityManager->getConnection()->executeQuery("PRAGMA foreign_keys = ON");
 
 		self::assertSame(null, $article->getId());
 		self::assertSame(null, $orphanRemovalTrue->getId());
@@ -560,9 +562,6 @@ class AllTest extends CommonTestCase
 
         self::$entityManager->persist($article);
         self::$entityManager->flush();
-
-        // Sqlite по умолчанию не проверяет foreign key violation.
-        self::$entityManager->getConnection()->executeQuery("PRAGMA foreign_keys = ON");
 
         self::$entityManager->getRepository(Article::class)
             ->createQueryBuilder('a')
