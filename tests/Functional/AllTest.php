@@ -269,12 +269,9 @@ class AllTest extends CommonTestCase
 	/**
 	 * Декларация orphanRemoval=true говорит о том, что когда удаляется объект Parent, то удаляется и объект Kid
 	 */
-	public function testOrphanRemoval()
+	public function testOrphanRemovalTrue()
 	{
 		$article = new Article();
-
-		$orphanRemovalFalse = new OrphanRemovalFalse();
-		$orphanRemovalFalse->setArticle($article);
 
 		$orphanRemovalTrue = new OrphanRemovalTrue();
 		$orphanRemovalTrue->setArticle($article);
@@ -284,15 +281,37 @@ class AllTest extends CommonTestCase
 
 		self::assertSame(1, $article->getId());
 		self::assertSame(1, $orphanRemovalTrue->getId());
-		self::assertSame(1, $orphanRemovalFalse->getId());
 
 		self::$entityManager->remove($article);
 		self::$entityManager->flush();
 
-		self::assertSame(null, $article->getId());
-		self::assertSame(null, $orphanRemovalTrue->getId());
-		self::assertSame(1, $orphanRemovalFalse->getId());
+		self::assertNull($article->getId());
+		self::assertNull($orphanRemovalTrue->getId());
 	}
+
+    /**
+     * Декларация orphanRemoval=false (используется по умолчанию) говорит о том, что когда удаляется объект Parent, то
+     * дочерний объект не будет удален. Если проверка foreign key'ев включена в БД, то будет выкинуто исключение.
+     */
+    public function testOrphanRemovalFalse()
+    {
+        $this->expectException(DriverException::class);
+        $article = new Article();
+
+        $orphanRemovalFalse = new OrphanRemovalFalse();
+        $orphanRemovalFalse->setArticle($article);
+
+        self::$entityManager->persist($article);
+        self::$entityManager->flush();
+
+        self::assertSame(1, $article->getId());
+        self::assertSame(1, $orphanRemovalFalse->getId());
+
+        self::$entityManager->remove($article);
+        self::$entityManager->flush();
+
+        self::assertSame(1, $orphanRemovalFalse->getId());
+    }
 
 	/**
 	 * ИТОГ:
@@ -560,9 +579,6 @@ class AllTest extends CommonTestCase
 
         self::$entityManager->persist($article);
         self::$entityManager->flush();
-
-        // Sqlite по умолчанию не проверяет foreign key violation.
-        self::$entityManager->getConnection()->executeQuery("PRAGMA foreign_keys = ON");
 
         self::$entityManager->getRepository(Article::class)
             ->createQueryBuilder('a')

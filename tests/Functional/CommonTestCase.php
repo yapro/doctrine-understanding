@@ -29,6 +29,14 @@ class CommonTestCase extends TestCase
 		self::createSchema();
 	}
 
+    protected function setUp(): void
+    {
+        // exception во время flush может закрыть EntityManager, без возможности открыть его заново.
+        if (!self::$entityManager->isOpen()) {
+            self::$entityManager = self::getEm();
+        }
+    }
+
 	private static function getEm(): EntityManagerInterface
 	{
 		AnnotationRegistry::loadAnnotationClass(Groups::class);
@@ -51,23 +59,26 @@ class CommonTestCase extends TestCase
 			'path' => $dbPath,
 		);
 		// obtaining the entity manager
-		return EntityManager::create($conn, $config);
+        return EntityManager::create($conn, $config);
 	}
 
 	private static function createSchema()
 	{
 		$classes = [
-			self::$entityManager->getClassMetadata(Article::class),
 			self::$entityManager->getClassMetadata(CascadePersistFalse::class),
 			self::$entityManager->getClassMetadata(CascadePersistTrue::class),
 			self::$entityManager->getClassMetadata(CascadeRefreshFalse::class),
 			self::$entityManager->getClassMetadata(CascadeRefreshTrue::class),
 			self::$entityManager->getClassMetadata(OrphanRemovalFalse::class),
 			self::$entityManager->getClassMetadata(OrphanRemovalTrue::class),
+            self::$entityManager->getClassMetadata(Article::class),
 		];
 		$schemaTool = new SchemaTool(self::$entityManager);
 		// you can drop the table like this if necessary
+
+        self::$entityManager->getConnection()->executeQuery("PRAGMA foreign_keys = OFF");
 		$schemaTool->dropSchema($classes);
+        self::$entityManager->getConnection()->executeQuery("PRAGMA foreign_keys = ON");
 		$schemaTool->createSchema($classes);
 	}
 
@@ -75,8 +86,10 @@ class CommonTestCase extends TestCase
 	{
 		$sql = '';
 		foreach (self::$entityManager->getConnection()->getSchemaManager()->listTableNames() as $tableName) {
-			$sql .= 'delete from ' . $tableName . ';';
+            $sql .= 'PRAGMA foreign_keys = OFF;';
+            $sql .= 'delete from ' . $tableName . ';';
 			$sql .= 'DELETE FROM SQLITE_SEQUENCE WHERE name="' . $tableName . '";';
+            $sql .= 'PRAGMA foreign_keys = ON;';
 		}
 		static::$entityManager->getConnection()->exec($sql);
 	}
