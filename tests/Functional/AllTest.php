@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace YaPro\DoctrineUnderstanding\Tests\Functional;
 
+use Doctrine\DBAL\Exception\DriverException;
+use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\AbstractQuery;
 use Doctrine\ORM\ORMInvalidArgumentException;
 use Doctrine\ORM\Query;
@@ -267,12 +269,9 @@ class AllTest extends CommonTestCase
 	/**
 	 * Декларация orphanRemoval=true говорит о том, что когда удаляется объект Parent, то удаляется и объект Kid
 	 */
-	public function testOrphanRemoval()
+	public function testOrphanRemovalTrue()
 	{
 		$article = new Article();
-
-		$orphanRemovalFalse = new OrphanRemovalFalse();
-		$orphanRemovalFalse->setArticle($article);
 
 		$orphanRemovalTrue = new OrphanRemovalTrue();
 		$orphanRemovalTrue->setArticle($article);
@@ -282,15 +281,35 @@ class AllTest extends CommonTestCase
 
 		self::assertSame(1, $article->getId());
 		self::assertSame(1, $orphanRemovalTrue->getId());
-		self::assertSame(1, $orphanRemovalFalse->getId());
 
 		self::$entityManager->remove($article);
 		self::$entityManager->flush();
 
-		self::assertSame(null, $article->getId());
-		self::assertSame(null, $orphanRemovalTrue->getId());
-		self::assertSame(1, $orphanRemovalFalse->getId());
+		self::assertNull($article->getId());
+		self::assertNull($orphanRemovalTrue->getId());
 	}
+
+    /**
+     * Декларация orphanRemoval=false (используется по умолчанию) говорит о том, что когда удаляется объект Parent, то
+     * дочерний объект не будет удален. Если проверка foreign key'ев включена в БД, то будет выкинуто исключение.
+     */
+    public function testOrphanRemovalFalse()
+    {
+        $this->expectException(DriverException::class);
+        $article = new Article();
+
+        $orphanRemovalFalse = new OrphanRemovalFalse();
+        $orphanRemovalFalse->setArticle($article);
+
+        self::$entityManager->persist($article);
+        self::$entityManager->flush();
+
+        self::assertSame(1, $article->getId());
+        self::assertSame(1, $orphanRemovalFalse->getId());
+
+        self::$entityManager->remove($article);
+        self::$entityManager->flush();
+    }
 
 	/**
 	 * ИТОГ:
@@ -516,5 +535,55 @@ class AllTest extends CommonTestCase
         /** @var Article $parent */
         $parent = self::$entityManager->getRepository(Article::class)->find(1);
         $this->assertCount(3, $parent->getCascadePersistTrueCollection());
+    }
+
+    /**
+     * Итог:
+     * Метод execute QueryBuilder'а выкидывает исключения на обновление, несмотря на то что это не прописано в его
+     * аннотации.
+     */
+    public function testExecuteThrowsExceptionOnUpdate(): void
+    {
+        $this->expectException(UniqueConstraintViolationException::class);
+
+        $article0 = new Article('article 0');
+        $article1 = new Article('article 1');
+        self::$entityManager->persist($article0);
+        self::$entityManager->persist($article1);
+        self::$entityManager->flush();
+
+        self::$entityManager->getRepository(Article::class)
+            ->createQueryBuilder('a')
+            ->update()
+            ->set('a.title', ':newTitle')
+            ->andWhere('a.id = :id')
+            ->setParameter('id', $article1->getId())
+            ->setParameter('newTitle', 'article 0')// такой же title, как и другой $article.
+            ->getQuery()
+            ->execute()
+        ;
+    }
+
+    /**
+     * Итог:
+     * Метод execute QueryBuilder'а выкидывает исключения на удаление, несмотря на то что это не прописано в его
+     * аннотации.
+     */
+    public function testExecuteTrowsExceptionOnDelete(): void
+    {
+        $this->expectException(DriverException::class);
+        $article = new Article('article 0');
+        (new OrphanRemovalFalse())->setArticle($article);
+
+        self::$entityManager->persist($article);
+        self::$entityManager->flush();
+
+        self::$entityManager->getRepository(Article::class)
+            ->createQueryBuilder('a')
+            ->delete()
+            ->andWhere('a.id = :id')
+            ->setParameter('id', $article->getId())
+            ->getQuery()
+            ->execute();
     }
 }

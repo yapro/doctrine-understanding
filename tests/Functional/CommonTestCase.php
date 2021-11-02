@@ -29,6 +29,14 @@ class CommonTestCase extends TestCase
 		self::createSchema();
 	}
 
+    protected function setUp(): void
+    {
+        // exception во время flush может закрыть EntityManager, без возможности открыть его заново.
+        if (!self::$entityManager->isOpen()) {
+            self::$entityManager = self::getEm();
+        }
+    }
+
 	private static function getEm(): EntityManagerInterface
 	{
 		AnnotationRegistry::loadAnnotationClass(Groups::class);
@@ -51,7 +59,7 @@ class CommonTestCase extends TestCase
 			'path' => $dbPath,
 		);
 		// obtaining the entity manager
-		return EntityManager::create($conn, $config);
+        return EntityManager::create($conn, $config);
 	}
 
 	private static function createSchema()
@@ -67,17 +75,22 @@ class CommonTestCase extends TestCase
 		];
 		$schemaTool = new SchemaTool(self::$entityManager);
 		// you can drop the table like this if necessary
+
+        self::$entityManager->getConnection()->executeQuery("PRAGMA foreign_keys = OFF");
 		$schemaTool->dropSchema($classes);
+        self::$entityManager->getConnection()->executeQuery("PRAGMA foreign_keys = ON");
 		$schemaTool->createSchema($classes);
 	}
 
 	protected static function truncateAllTables()
 	{
-		$sql = '';
+		$sql = 'PRAGMA foreign_keys = OFF;';
 		foreach (self::$entityManager->getConnection()->getSchemaManager()->listTableNames() as $tableName) {
 			$sql .= 'delete from ' . $tableName . ';';
 			$sql .= 'DELETE FROM SQLITE_SEQUENCE WHERE name="' . $tableName . '";';
 		}
+		$sql .= 'PRAGMA foreign_keys = ON;';
+
 		static::$entityManager->getConnection()->exec($sql);
 	}
 }
