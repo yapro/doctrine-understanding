@@ -65,13 +65,13 @@ class CommonTestCase extends TestCase
 	private static function createSchema()
 	{
 		$classes = [
+			self::$entityManager->getClassMetadata(Article::class),
 			self::$entityManager->getClassMetadata(CascadePersistFalse::class),
 			self::$entityManager->getClassMetadata(CascadePersistTrue::class),
 			self::$entityManager->getClassMetadata(CascadeRefreshFalse::class),
 			self::$entityManager->getClassMetadata(CascadeRefreshTrue::class),
 			self::$entityManager->getClassMetadata(OrphanRemovalFalse::class),
 			self::$entityManager->getClassMetadata(OrphanRemovalTrue::class),
-            self::$entityManager->getClassMetadata(Article::class),
 		];
 		$schemaTool = new SchemaTool(self::$entityManager);
 		// you can drop the table like this if necessary

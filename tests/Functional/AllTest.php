@@ -309,8 +309,6 @@ class AllTest extends CommonTestCase
 
         self::$entityManager->remove($article);
         self::$entityManager->flush();
-
-        self::assertSame(1, $orphanRemovalFalse->getId());
     }
 
 	/**
