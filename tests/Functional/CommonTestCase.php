@@ -84,13 +84,13 @@ class CommonTestCase extends TestCase
 
 	protected static function truncateAllTables()
 	{
-		$sql = '';
+		$sql = 'PRAGMA foreign_keys = OFF;';
 		foreach (self::$entityManager->getConnection()->getSchemaManager()->listTableNames() as $tableName) {
-            $sql .= 'PRAGMA foreign_keys = OFF;';
-            $sql .= 'delete from ' . $tableName . ';';
+			$sql .= 'delete from ' . $tableName . ';';
 			$sql .= 'DELETE FROM SQLITE_SEQUENCE WHERE name="' . $tableName . '";';
-            $sql .= 'PRAGMA foreign_keys = ON;';
 		}
+		$sql .= 'PRAGMA foreign_keys = ON;';
+
 		static::$entityManager->getConnection()->exec($sql);
 	}
 }
