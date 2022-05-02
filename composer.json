@@ -5,13 +5,9 @@
         "php": "7.4.*",
         "doctrine/orm": "*"
     },
-    "autoload": {
-        "psr-4": {
-            "YaPro\\DoctrineUnderstanding\\": "src/"
-        }
-    },
     "require-dev": {
         "ext-pdo_sqlite": "*",
+        "doctrine/annotations": "*",
         "phpunit/phpunit": "*",
         "symfony/cache": "*",
         "symfony/serializer": "*"

@@ -49,6 +49,17 @@ docker run --rm --user=1000:1000 -v $(pwd):/app yapro/doctrine-understanding:lat
 - https://xdebug.org/docs/upgrade_guide
 - https://www.jetbrains.com/help/phpstorm/2021.1/debugging-a-php-cli-script.html
 
+Cs-Fixer:
+```sh
+docker run --user=1000:1000 --rm -v $(pwd):/app -w /app yapro/doctrine-understanding:latest ./php-cs-fixer.phar fix --config=.php-cs-fixer.dist.php -v --using-cache=no --allow-risky=yes
+```
+
+Update phpmd rules:
+```shell
+docker run --user=1000:1000 --rm -v $(pwd):/app -w /app yapro/doctrine-understanding:latest ./phpmd.phar . text phpmd.xml --exclude .github/workflows,vendor --strict --generate-baseline
+```
+
+
 ## Doctrine docs
 
 [Примечания переводчика](docs/translator-note.md "Примечания переводчика")

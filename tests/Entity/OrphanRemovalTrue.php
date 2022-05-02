@@ -5,31 +5,30 @@ declare(strict_types=1);
 namespace YaPro\DoctrineUnderstanding\Tests\Entity;
 
 use Doctrine\ORM\Mapping as ORM;
-use Symfony\Component\Serializer\Annotation\Groups;
 
 /**
- * @ORM\Entity()
+ * @ORM\Entity
  */
 class OrphanRemovalTrue
 {
-	/**
-	 * @var ?int
-	 *
-	 * @ORM\Id
-	 * @ORM\Column(type="integer")
-	 * @ORM\GeneratedValue(strategy="IDENTITY")
-	 */
-	private ?int $id = 0; // ?int чтобы doctrine не падал при удалении записи
+    /**
+     * @var ?int
+     *
+     * @ORM\Id
+     * @ORM\Column(type="integer")
+     * @ORM\GeneratedValue(strategy="IDENTITY")
+     */
+    private ?int $id = 0; // ?int чтобы doctrine не падал при удалении записи
 
     /**
      * @ORM\Column(type="integer")
      */
     private int $parentId = 0;
 
-	/**
-	 * @ORM\Column(type="text")
-	 */
-	private string $message = 'True';
+    /**
+     * @ORM\Column(type="text")
+     */
+    private string $message = 'True';
 
     /**
      * @ORM\ManyToOne(targetEntity="Article", inversedBy="orphanRemovalTrueCollection")
@@ -37,21 +36,22 @@ class OrphanRemovalTrue
      */
     private Article $article;
 
-	public function getId(): ?int
-	{
-		return $this->id;
-	}
+    public function getId(): ?int
+    {
+        return $this->id;
+    }
 
-	public function getParentId(): int
-	{
-		return $this->parentId;
-	}
+    public function getParentId(): int
+    {
+        return $this->parentId;
+    }
 
-	public function setParentId(int $parentId): self
-	{
-		$this->parentId = $parentId;
-		return $this;
-	}
+    public function setParentId(int $parentId): self
+    {
+        $this->parentId = $parentId;
+
+        return $this;
+    }
 
     public function getMessage(): ?string
     {
@@ -65,18 +65,18 @@ class OrphanRemovalTrue
         return $this;
     }
 
-	public function getArticle(): Article
-	{
-		return $this->article;
-	}
+    public function getArticle(): Article
+    {
+        return $this->article;
+    }
 
-	public function setArticle(Article $article = null, bool $updateRelation = true): self
-	{
-		$this->article = $article;
-		if ($article && $updateRelation) {
-			$article->addOrphanRemovalTrue($this, false);
-		}
+    public function setArticle(Article $article = null, bool $updateRelation = true): self
+    {
+        $this->article = $article;
+        if ($article && $updateRelation) {
+            $article->addOrphanRemovalTrue($this, false);
+        }
 
-		return $this;
-	}
+        return $this;
+    }
 }
