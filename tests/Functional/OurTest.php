@@ -21,7 +21,7 @@ use YaPro\DoctrineUnderstanding\Tests\Entity\OrphanRemovalTrue;
  * Ищите в тесте слово НЕЖДАНЧИК и читайте пояснение.
  * https://www.doctrine-project.org/projects/doctrine-orm/en/2.9/reference/working-with-objects.html
  */
-class AllTest extends CommonTestCase
+class OurTest extends CommonTestCase
 {
     public function setUp(): void
     {
