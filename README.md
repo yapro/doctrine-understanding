@@ -1,7 +1,9 @@
 # Понимая Doctrine
 
 Так вышло, что документация Doctrine в некоторых местах не является достаточно детальной, поэтому было решено
-рассмотреть основные ситуации в файле [tests/Functional/AllTest.php](tests/Functional/AllTest.php)
+рассмотреть основные ситуации в файле [tests/Functional/OurTest.php](tests/Functional/OurTest.php)
+
+![lib tests](https://github.com/yapro/doctrine-understanding/actions/workflows/main.yml/badge.svg)
 
 Напоминаю про:
 - https://ocramius.github.io/doctrine-best-practices/
@@ -30,35 +32,34 @@ docker run --rm --user=1000:1000 -v $(pwd):/app yapro/doctrine-understanding:lat
 
 Dev
 ```sh
-docker run -it --rm --user=1000:1000 -v $(pwd):/app -w /app yapro/doctrine-understanding:latest bash
+docker run -it --rm --user=1000:1000 --add-host=host.docker.internal:host-gateway -v $(pwd):/app -w /app yapro/doctrine-understanding:latest bash
 composer install -o
 ```
 
 Debug PHP:
 ```sh
-docker run --rm --user=1000:1000 -v $(pwd):/app yapro/doctrine-understanding:latest bash -c "cd /app \
-  && composer install --optimize-autoloader --no-scripts --no-interaction \
-  && PHP_IDE_CONFIG=\"serverName=common\" \
-     XDEBUG_SESSION=common \
-     XDEBUG_MODE=debug \
-     XDEBUG_CONFIG=\"max_nesting_level=200 client_port=9003 client_host=172.16.30.130\" \
-     vendor/bin/phpunit --cache-result-file=/tmp/phpunit.cache --testsuite=Functional"
+PHP_IDE_CONFIG="serverName=common" \
+XDEBUG_SESSION=common \
+XDEBUG_MODE=debug \
+XDEBUG_CONFIG="max_nesting_level=200 client_port=9003 client_host=host.docker.internal" \
+vendor/bin/phpunit  --cache-result-file=/tmp/phpunit.cache -v --stderr --stop-on-incomplete --stop-on-defect \
+--stop-on-failure --stop-on-warning --fail-on-warning --stop-on-risky --fail-on-risky --testsuite=Functional
 ```
+
 Если с xdebug что-то не получается, напишите: php -dxdebug.log='/tmp/xdebug.log' и смотрите в лог.
 
 - https://xdebug.org/docs/upgrade_guide
 - https://www.jetbrains.com/help/phpstorm/2021.1/debugging-a-php-cli-script.html
 
-Cs-Fixer:
+Cs-Fixer: fix code
 ```sh
 docker run --user=1000:1000 --rm -v $(pwd):/app -w /app yapro/doctrine-understanding:latest ./php-cs-fixer.phar fix --config=.php-cs-fixer.dist.php -v --using-cache=no --allow-risky=yes
 ```
 
-Update phpmd rules:
+PhpMd: update rules
 ```shell
 docker run --user=1000:1000 --rm -v $(pwd):/app -w /app yapro/doctrine-understanding:latest ./phpmd.phar . text phpmd.xml --exclude .github/workflows,vendor --strict --generate-baseline
 ```
-
 
 ## Doctrine docs
 

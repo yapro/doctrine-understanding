@@ -7,18 +7,21 @@ namespace YaPro\DoctrineUnderstanding\Tests\Functional;
 use Doctrine\Common\Annotations\AnnotationRegistry;
 use Doctrine\ORM\EntityManager;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\Events;
 use Doctrine\ORM\Tools\SchemaTool;
 use Doctrine\ORM\Tools\Setup;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Serializer\Annotation\Groups;
 use Symfony\Component\Serializer\Annotation\MaxDepth;
 use YaPro\DoctrineUnderstanding\Tests\Entity\Article;
+use YaPro\DoctrineUnderstanding\Tests\Entity\Calista;
 use YaPro\DoctrineUnderstanding\Tests\Entity\CascadePersistFalse;
 use YaPro\DoctrineUnderstanding\Tests\Entity\CascadePersistTrue;
 use YaPro\DoctrineUnderstanding\Tests\Entity\CascadeRefreshFalse;
 use YaPro\DoctrineUnderstanding\Tests\Entity\CascadeRefreshTrue;
 use YaPro\DoctrineUnderstanding\Tests\Entity\OrphanRemovalFalse;
 use YaPro\DoctrineUnderstanding\Tests\Entity\OrphanRemovalTrue;
+use YaPro\DoctrineUnderstanding\Tests\EntityListener\CalistaListener;
 
 class CommonTestCase extends TestCase
 {
@@ -59,8 +62,10 @@ class CommonTestCase extends TestCase
             'driver' => 'pdo_sqlite',
             'path' => $dbPath,
         ];
-        // obtaining the entity manager
-        return EntityManager::create($conn, $config);
+        $em = EntityManager::create($conn, $config);
+        $em->getEventManager()->addEventListener([Events::postFlush], new CalistaListener());
+
+        return $em;
     }
 
     private static function createSchema()
@@ -73,6 +78,7 @@ class CommonTestCase extends TestCase
             self::$entityManager->getClassMetadata(CascadeRefreshTrue::class),
             self::$entityManager->getClassMetadata(OrphanRemovalFalse::class),
             self::$entityManager->getClassMetadata(OrphanRemovalTrue::class),
+            self::$entityManager->getClassMetadata(Calista::class),
         ];
         $schemaTool = new SchemaTool(self::$entityManager);
         // you can drop the table like this if necessary

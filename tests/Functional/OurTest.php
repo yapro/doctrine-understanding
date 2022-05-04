@@ -10,6 +10,7 @@ use Doctrine\ORM\AbstractQuery;
 use Doctrine\ORM\ORMInvalidArgumentException;
 use Doctrine\ORM\Query;
 use YaPro\DoctrineUnderstanding\Tests\Entity\Article;
+use YaPro\DoctrineUnderstanding\Tests\Entity\Calista;
 use YaPro\DoctrineUnderstanding\Tests\Entity\CascadePersistFalse;
 use YaPro\DoctrineUnderstanding\Tests\Entity\CascadePersistTrue;
 use YaPro\DoctrineUnderstanding\Tests\Entity\CascadeRefreshFalse;
@@ -570,5 +571,15 @@ class OurTest extends CommonTestCase
             ->setParameter('id', $article->getId())
             ->getQuery()
             ->execute();
+    }
+
+    public function testCrudEntity()
+    {
+        $entity = new Calista();
+        self::$entityManager->persist($entity);
+        $GLOBALS['testCrudEntity'] = [];
+        self::$entityManager->flush();
+        $this->assertTrue($GLOBALS['testCrudEntity']['isPreFlushHandlerCalled']);
+        $this->assertTrue($GLOBALS['testCrudEntity']['isPostFlushCalled']);
     }
 }
