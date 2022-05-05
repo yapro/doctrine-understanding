@@ -607,4 +607,48 @@ class OurTest extends CommonTestCase
         $this->assertFalse(isset($GLOBALS['CalistaListener']['isUpdateCalled']));
         $this->assertTrue($GLOBALS['CalistaListener']['isDeleteCalled']);
     }
+
+    // итог:
+    // - если во время выполнения SQL-инструкции в бд возникла ошибка, то методы слушателя не вызываются
+    // - если во время выполнения SQL-инструкции в бд возникла ошибка, то подключение к бд не закрывается
+    // - если во время выполнения SQL-инструкции в бд возникла ошибка, то $entityManager закрывается
+    public function testErrorInDb()
+    {
+        $entity = new Calista('one');
+        self::$entityManager->persist($entity);
+        self::$entityManager->flush();
+
+        $GLOBALS['CalistaListener'] = [];
+        $entity = new Calista('one');
+        self::$entityManager->persist($entity);
+        try {
+            self::$entityManager->flush();
+        } catch (\Throwable $e) {
+            $this->assertTrue($e->getMessage() === 'An exception occurred while executing a query: SQLSTATE[23000]: Integrity constraint violation: 19 UNIQUE constraint failed: Calista.id');
+        }
+
+        $this->assertFalse(isset($GLOBALS['CalistaListener']['isInsertCalled']));
+        $this->assertFalse(isset($GLOBALS['CalistaListener']['isUpdateCalled']));
+        $this->assertFalse(isset($GLOBALS['CalistaListener']['isDeleteCalled']));
+
+        // исключение возникло, но подключение не закрыто (нет смысла self::$entityManager->getConnection()->connect();)
+        $this->assertTrue(self::$entityManager->getConnection()->isConnected());
+
+        // В методе \Doctrine\ORM\UnitOfWork::commit() есть try/catch в котором нет, но должна быть проверка, чтобы при
+        // некоторых исключениях не закрывать $entityManager ведь Connection есть
+        $this->assertFalse(self::$entityManager->isOpen());
+
+        // итог: $entityManager закрыт и его не переоткрыть (доктрина не предусмотрела такой функционал), поэтому
+        // создаем новый $entityManager на основе данных старого
+
+        self::$entityManager = self::$entityManager->create(
+            self::$entityManager->getConnection(),
+            self::$entityManager->getConfiguration(),
+            self::$entityManager->getEventManager()
+        );
+        $entity = new Calista('two');
+        self::$entityManager->persist($entity);
+        self::$entityManager->flush();
+        $this->assertTrue(true);
+    }
 }
