@@ -573,13 +573,38 @@ class OurTest extends CommonTestCase
             ->execute();
     }
 
-    public function testCrudEntity()
+    public function testCallCalistaListenerEvents()
     {
-        $entity = new Calista();
+        $GLOBALS['CalistaListener'] = [];
+        $entity = new Calista('one');
         self::$entityManager->persist($entity);
-        $GLOBALS['testCrudEntity'] = [];
         self::$entityManager->flush();
-        $this->assertTrue($GLOBALS['testCrudEntity']['isPreFlushHandlerCalled']);
-        $this->assertTrue($GLOBALS['testCrudEntity']['isPostFlushCalled']);
+        $this->assertTrue($GLOBALS['CalistaListener']['isInsertCalled']);
+        $this->assertTrue($GLOBALS['CalistaListener']['isPostFlushCalled']);
+    }
+
+    public function testCalistaListenerPostFlushEvent()
+    {
+        $GLOBALS['CalistaListener'] = [];
+        $entity = new Calista('one');
+        self::$entityManager->persist($entity);
+        self::$entityManager->flush();
+        $this->assertTrue($GLOBALS['CalistaListener']['isInsertCalled']);
+        $this->assertFalse(isset($GLOBALS['CalistaListener']['isUpdateCalled']));
+        $this->assertFalse(isset($GLOBALS['CalistaListener']['isDeleteCalled']));
+
+        $GLOBALS['CalistaListener'] = [];
+        $entity->setTitle('title 2');
+        self::$entityManager->flush();
+        $this->assertFalse(isset($GLOBALS['CalistaListener']['isInsertCalled']));
+        $this->assertTrue($GLOBALS['CalistaListener']['isUpdateCalled']);
+        $this->assertFalse(isset($GLOBALS['CalistaListener']['isDeleteCalled']));
+
+        $GLOBALS['CalistaListener'] = [];
+        self::$entityManager->remove($entity);
+        self::$entityManager->flush();
+        $this->assertFalse(isset($GLOBALS['CalistaListener']['isInsertCalled']));
+        $this->assertFalse(isset($GLOBALS['CalistaListener']['isUpdateCalled']));
+        $this->assertTrue($GLOBALS['CalistaListener']['isDeleteCalled']);
     }
 }
