@@ -16,11 +16,11 @@ use Symfony\Component\Serializer\Annotation\MaxDepth;
 use YaPro\DoctrineUnderstanding\Tests\Entity\Article;
 use YaPro\DoctrineUnderstanding\Tests\Entity\Calista;
 use YaPro\DoctrineUnderstanding\Tests\Entity\CascadePersistFalse;
-use YaPro\DoctrineUnderstanding\Tests\Entity\CascadePersistTrue;
 use YaPro\DoctrineUnderstanding\Tests\Entity\CascadeRefreshFalse;
 use YaPro\DoctrineUnderstanding\Tests\Entity\CascadeRefreshTrue;
 use YaPro\DoctrineUnderstanding\Tests\Entity\OrphanRemovalFalse;
 use YaPro\DoctrineUnderstanding\Tests\Entity\OrphanRemovalTrue;
+use YaPro\DoctrineUnderstanding\Tests\Entity\Paragraph;
 use YaPro\DoctrineUnderstanding\Tests\EntityListener\CalistaListener;
 
 class CommonTestCase extends TestCase
@@ -73,12 +73,12 @@ class CommonTestCase extends TestCase
         $classes = [
             self::$entityManager->getClassMetadata(Article::class),
             self::$entityManager->getClassMetadata(CascadePersistFalse::class),
-            self::$entityManager->getClassMetadata(CascadePersistTrue::class),
             self::$entityManager->getClassMetadata(CascadeRefreshFalse::class),
             self::$entityManager->getClassMetadata(CascadeRefreshTrue::class),
             self::$entityManager->getClassMetadata(OrphanRemovalFalse::class),
             self::$entityManager->getClassMetadata(OrphanRemovalTrue::class),
             self::$entityManager->getClassMetadata(Calista::class),
+            self::$entityManager->getClassMetadata(Paragraph::class),
         ];
         $schemaTool = new SchemaTool(self::$entityManager);
         // you can drop the table like this if necessary

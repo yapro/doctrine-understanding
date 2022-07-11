@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace YaPro\DoctrineUnderstanding\Tests\Functional;
+namespace YaPro\DoctrineUnderstanding\Tests\Functional\BlackBox;
 
 use Doctrine\DBAL\Exception\DriverException;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
@@ -12,11 +12,12 @@ use Doctrine\ORM\Query;
 use YaPro\DoctrineUnderstanding\Tests\Entity\Article;
 use YaPro\DoctrineUnderstanding\Tests\Entity\Calista;
 use YaPro\DoctrineUnderstanding\Tests\Entity\CascadePersistFalse;
-use YaPro\DoctrineUnderstanding\Tests\Entity\CascadePersistTrue;
 use YaPro\DoctrineUnderstanding\Tests\Entity\CascadeRefreshFalse;
 use YaPro\DoctrineUnderstanding\Tests\Entity\CascadeRefreshTrue;
 use YaPro\DoctrineUnderstanding\Tests\Entity\OrphanRemovalFalse;
 use YaPro\DoctrineUnderstanding\Tests\Entity\OrphanRemovalTrue;
+use YaPro\DoctrineUnderstanding\Tests\Entity\Paragraph;
+use YaPro\DoctrineUnderstanding\Tests\Functional\CommonTestCase;
 
 /**
  * Ищите в тесте слово НЕЖДАНЧИК и читайте пояснение.
@@ -208,7 +209,7 @@ class OurTest extends CommonTestCase
     {
         $article = new Article();
 
-        $cascadePersistTrue = new CascadePersistTrue();
+        $cascadePersistTrue = new Paragraph();
         $cascadePersistTrue->setArticle($article);
 
         self::$entityManager->persist($article);
@@ -323,8 +324,8 @@ class OurTest extends CommonTestCase
         // данные в Unit of Work откуда данные возвращаются уже в виде объекта (или списка объектов). Казалось бы, все
         // хорошо, но проблема появляется, когда один и тот же объект/список объектов запрашивается из бд несколько раз.
         $article = new Article();
-        (new CascadePersistTrue())->setArticle($article);
-        (new CascadePersistTrue())->setArticle($article);
+        (new Paragraph())->setArticle($article);
+        (new Paragraph())->setArticle($article);
         self::$entityManager->persist($article);
         self::$entityManager->flush();
 
@@ -340,7 +341,7 @@ class OurTest extends CommonTestCase
 
         $result = $query->getResult(AbstractQuery::HYDRATE_ARRAY);
         self::assertSame(
-            '[{"id":1,"title":"Article","cascadePersistTrueCollection":[{"id":1,"parentId":0,"message":"True"}]}]',
+            '[{"id":1,"title":"Article","cascadePersistTrueCollection":[{"id":1,"parentId":0,"message":"default text"}]}]',
             json_encode($result)
         );
         self::assertSame(1, count($result));
@@ -357,11 +358,11 @@ class OurTest extends CommonTestCase
         // НЕЖДАНЧИК 2: если в Parent добавить новый Kid, то повторная выборка не дает новый результат (doctrine
         // кэширует результат запроса на основании SQL)
         self::$entityManager->getConnection()->executeQuery(
-            "INSERT INTO CascadePersistTrue (parentId, message, articleId) VALUES (0, 'message', 1)"
+            "INSERT INTO Paragraph (parentId, message, articleId) VALUES (0, 'message', 1)"
         );
         $result = $query->getResult();
         self::assertSame(2, $result[0]->getCascadePersistTrueCollection()->count());
-        // в ->setMaxResults() указали 1, а получили 2, а в таблице CascadePersistTrue уже 3 записи
+        // в ->setMaxResults() указали 1, а получили 2, а в таблице Paragraph уже 3 записи
 
         // НЕЖДАНЧИК 3: тот же самый запрос с HINT_REFRESH возвращает правильное кол-во Kid`s равное 1-ому
         $queryClone = (clone $query);
@@ -400,7 +401,7 @@ class OurTest extends CommonTestCase
             "INSERT INTO Article (title) VALUES ('title-1'), ('title-2');"
         );
         self::$entityManager->getConnection()->executeQuery(
-            "INSERT INTO CascadePersistTrue (parentId, message, articleId) VALUES (0, 'message-1', 1), (0, 'message-2', 1)"
+            "INSERT INTO Paragraph (parentId, message, articleId) VALUES (0, 'message-1', 1), (0, 'message-2', 1)"
         );
         $limitOne = 1;
 
@@ -424,8 +425,8 @@ class OurTest extends CommonTestCase
         self::assertSame(1, $result[0]->getCascadePersistTrueCollection()->count());
         // результат неправильный, а SQL-правильный - LIMIT 2:
         $sql = 'SELECT a0_.id AS id_0, a0_.title AS title_1, ' .
-            'c1_.id AS id_2, c1_.parentId AS parentId_3, c1_.message AS message_4, c1_.articleId AS articleId_5 ' .
-            'FROM Article a0_ INNER JOIN CascadePersistTrue c1_ ON a0_.id = c1_.articleId LIMIT 2';
+            'p1_.id AS id_2, p1_.parentId AS parentId_3, p1_.message AS message_4, p1_.articleId AS articleId_5 ' .
+            'FROM Article a0_ INNER JOIN Paragraph p1_ ON a0_.id = p1_.articleId LIMIT 2';
         self::assertSame($sql, $query->getSQL());
 
         // НЕЖДАНЧИК 4: мы не меняем $result, doctrine сама это делает за нас
@@ -473,11 +474,11 @@ class OurTest extends CommonTestCase
             "INSERT INTO Article (title) VALUES ('title-1');"
         );
         self::$entityManager->getConnection()->executeQuery(
-            "INSERT INTO CascadePersistTrue (parentId, message, articleId) VALUES (0, 'msg-kid-1', 1)"
+            "INSERT INTO Paragraph (parentId, message, articleId) VALUES (0, 'msg-kid-1', 1)"
         );
 
-        $kid1 = self::$entityManager->getRepository(CascadePersistTrue::class)->findOneByMessage('msg-kid-1');
-        $kid2 = (new CascadePersistTrue())->setMessage('msg-kid-2');
+        $kid1 = self::$entityManager->getRepository(Paragraph::class)->findOneByMessage('msg-kid-1');
+        $kid2 = (new Paragraph())->setMessage('msg-kid-2');
 
         /** @var Article $parent */
         $parent = self::$entityManager->getRepository(Article::class)->find(1);
@@ -503,13 +504,13 @@ class OurTest extends CommonTestCase
             "INSERT INTO Article (title) VALUES ('title-1');"
         );
         self::$entityManager->getConnection()->executeQuery(
-            "INSERT INTO CascadePersistTrue (parentId, message, articleId) VALUES (0, 'msg-kid-1', 1)"
+            "INSERT INTO Paragraph (parentId, message, articleId) VALUES (0, 'msg-kid-1', 1)"
         );
 
-        $kid1 = self::$entityManager->getRepository(CascadePersistTrue::class)->findOneByMessage('msg-kid-1');
+        $kid1 = self::$entityManager->getRepository(Paragraph::class)->findOneByMessage('msg-kid-1');
         // !! сбросим entityManager
         self::$entityManager->clear();
-        $kid2 = (new CascadePersistTrue())->setMessage('msg-kid-2');
+        $kid2 = (new Paragraph())->setMessage('msg-kid-2');
 
         /** @var Article $parent */
         $parent = self::$entityManager->getRepository(Article::class)->find(1);

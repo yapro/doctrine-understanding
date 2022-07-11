@@ -9,7 +9,7 @@ use Doctrine\ORM\Mapping as ORM;
 /**
  * @ORM\Entity
  */
-class CascadePersistTrue
+class Paragraph
 {
     /**
      * @var ?int
@@ -28,7 +28,7 @@ class CascadePersistTrue
     /**
      * @ORM\Column(type="text")
      */
-    private string $message = 'True';
+    private string $message = 'default text';
 
     /**
      * @ORM\ManyToOne(targetEntity="Article", inversedBy="cascadePersistTrueCollection")

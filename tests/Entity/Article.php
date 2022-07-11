@@ -39,8 +39,8 @@ class Article
     private Collection $cascadePersistFalseCollection;
 
     /**
-     * @var Collection|CascadePersistTrue[]
-     * @ORM\OneToMany(targetEntity="CascadePersistTrue", mappedBy="article", cascade={"persist"})
+     * @var Collection|Paragraph[]
+     * @ORM\OneToMany(targetEntity="Paragraph", mappedBy="article", cascade={"persist"})
      * @MaxDepth(1)
      */
     private Collection $cascadePersistTrueCollection;
@@ -110,7 +110,7 @@ class Article
     }
 
     /**
-     * @return Collection|CascadePersistTrue[]
+     * @return Collection|Paragraph[]
      */
     public function getCascadePersistTrueCollection()
     {
@@ -202,7 +202,7 @@ class Article
         return $this;
     }
 
-    public function addCascadePersistTrue(CascadePersistTrue $object, bool $updateRelation = true): self
+    public function addCascadePersistTrue(Paragraph $object, bool $updateRelation = true): self
     {
         if ($this->cascadePersistTrueCollection->contains($object)) {
             return $this;
