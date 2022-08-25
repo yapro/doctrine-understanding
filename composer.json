@@ -6,7 +6,6 @@
         "doctrine/orm": "*"
     },
     "require-dev": {
-        "ext-json": "*",
         "ext-pdo_sqlite": "*",
         "doctrine/annotations": "*",
         "phpunit/phpunit": "*",
