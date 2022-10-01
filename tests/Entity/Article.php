@@ -46,13 +46,6 @@ class Article
     private Collection $cascadePersistTrueCollection;
 
     /**
-     * @var Collection|CascadeRemove[]
-     * @ORM\OneToMany(targetEntity="CascadeRemove", mappedBy="article", cascade={"remove"})
-     * @MaxDepth(1)
-     */
-    private Collection $cascadeRemoveCollection;
-
-    /**
      * @var Collection|CascadeRefreshFalse[]
      * @ORM\OneToMany(targetEntity="CascadeRefreshFalse", mappedBy="article", cascade={"persist"})
      * @MaxDepth(1)
