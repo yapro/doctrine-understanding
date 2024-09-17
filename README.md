@@ -45,6 +45,28 @@ if ($entityManager->contains($entity)) {...}
 $isPersisted = \Doctrine\ORM\UnitOfWork::STATE_MANAGED === $entityManager->getUnitOfWork()->getEntityState($entity);
 ```
 
+## Как в сущности A получить доступ к сущности B
+
+```php
+use Doctrine\ORM\Event\PrePersistEventArgs;
+
+/**
+ * @ORM\Entity(repositoryClass="...\GameRepository")
+ * @ORM\HasLifecycleCallbacks()
+ */
+class Game {
+    /**
+     * @ORM\prePersist
+     */
+    public function setSlugValue( PrePersistEventArgs $event ) {
+        $entityManager = $event->getEntityManager();
+        $repository    = $entityManager->getRepository( get_class($this) );
+        
+        $this->slug = $repository->createUniqueSlugForGame();
+    }
+}
+```
+
 ## Как запустить тесты или поправить их
 
 Предисловие: в репозитории имеется файл composer.lock.dist, необходимый, чтобы понимать, когда и при каких версиях
